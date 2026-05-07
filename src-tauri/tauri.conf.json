@@ -53,7 +53,7 @@
                                                               ]
                                             },
 "webviewInstallMode":  {
-                                                               "type":  "fixedRuntime"
+                                                               "type":  "downloadBootstrapper"
                                                            }
                                }
                }
