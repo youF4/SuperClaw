@@ -5,9 +5,14 @@ const menuItems = [
   { path: '/chat', label: '聊天', icon: '💬' },
   { path: '/channels', label: '通道', icon: '📡' },
   { path: '/models', label: '模型', icon: '🤖' },
+  { path: '/memory', label: '记忆管理', icon: '🧠' },
+  { path: '/tools', label: '工具箱', icon: '🔧' },
+  { path: '/agents', label: '智能体', icon: '🎭' },
   { path: '/skills', label: '技能', icon: '⚡' },
   { path: '/cron', label: '定时任务', icon: '⏰' },
-  { path: '/agents', label: '智能体', icon: '🎭' },
+  { path: '/artifacts', label: '工件管理', icon: '📦' },
+  { path: '/devices', label: '设备管理', icon: '📱' },
+  { path: '/environments', label: '环境节点', icon: '🖥️' },
   { path: '/settings', label: '设置', icon: '⚙️' },
 ]
 </script>

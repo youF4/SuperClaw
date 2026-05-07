@@ -74,6 +74,10 @@ export const gatewayApi = {
       callGateway('sessions.reset', { sessionKey: sessionId }),
     compact: (sessionId: string) =>
       callGateway('sessions.compact', { sessionKey: sessionId }),
+    describe: (sessionKey: string) =>
+      callGateway('sessions.describe', { sessionKey }),
+    preview: (sessionKey: string, limit = 10) =>
+      callGateway('sessions.preview', { sessionKey, limit }),
   },
 
   // 通道
@@ -83,6 +87,8 @@ export const gatewayApi = {
       callGateway('channels.start', { channelId }),
     stop: (channelId: string) =>
       callGateway('channels.stop', { channelId }),
+    logout: (channelId: string) =>
+      callGateway('channels.logout', { channelId }),
   },
 
   // 模型
@@ -96,23 +102,31 @@ export const gatewayApi = {
     status: () => callGateway('skills.status'),
     search: (query: string) =>
       callGateway('skills.search', { query }),
+    detail: (skillId: string) =>
+      callGateway('skills.detail', { skillId }),
     install: (skillId: string) =>
       callGateway('skills.install', { skillId }),
     update: (skillId: string) =>
       callGateway('skills.update', { skillId }),
     uninstall: (skillId: string) =>
       callGateway('skills.uninstall', { skillId }),
+    bins: () => callGateway('skills.bins'),
   },
 
   // Cron
   cron: {
     list: () => callGateway('cron.list'),
+    status: () => callGateway('cron.status'),
     add: (job: unknown) =>
       callGateway('cron.add', { job }),
+    update: (jobId: string, job: unknown) =>
+      callGateway('cron.update', { jobId, job }),
     remove: (jobId: string) =>
       callGateway('cron.remove', { jobId }),
     run: (jobId: string) =>
       callGateway('cron.run', { jobId }),
+    runs: (jobId: string) =>
+      callGateway('cron.runs', { jobId }),
   },
 
   // Agents
@@ -124,6 +138,14 @@ export const gatewayApi = {
       callGateway('agents.update', { agentId, config }),
     delete: (agentId: string) =>
       callGateway('agents.delete', { agentId }),
+    files: {
+      list: (agentId: string) =>
+        callGateway('agents.files.list', { agentId }),
+      get: (agentId: string, path: string) =>
+        callGateway('agents.files.get', { agentId, path }),
+      set: (agentId: string, path: string, content: string) =>
+        callGateway('agents.files.set', { agentId, path, content }),
+    },
   },
 
   // 配置
@@ -133,6 +155,9 @@ export const gatewayApi = {
       callGateway('config.set', { config }),
     patch: (patch: unknown) =>
       callGateway('config.patch', { patch }),
+    schema: () => callGateway('config.schema'),
+    schemaLookup: (path: string) =>
+      callGateway('config.schema.lookup', { path }),
   },
 
   // 用量统计
@@ -147,11 +172,201 @@ export const gatewayApi = {
       callGateway('logs.tail', { lines }),
   },
 
-  // 诊断
+  // ========================================
+  // Phase 1: 记忆管理 (Memory / Doctor)
+  // ========================================
   doctor: {
     memory: {
       status: () => callGateway('doctor.memory.status'),
+      dreamDiary: () => callGateway('doctor.memory.dreamDiary'),
+      resetDreamDiary: () => callGateway('doctor.memory.resetDreamDiary'),
+      resetGroundedShortTerm: () => callGateway('doctor.memory.resetGroundedShortTerm'),
+      repairDreamingArtifacts: () => callGateway('doctor.memory.repairDreamingArtifacts'),
+      dedupeDreamDiary: () => callGateway('doctor.memory.dedupeDreamDiary'),
+      backfillDreamDiary: () => callGateway('doctor.memory.backfillDreamDiary'),
     },
+  },
+
+  // ========================================
+  // Phase 1: 设备管理 (Device)
+  // ========================================
+  device: {
+    pair: {
+      list: () => callGateway('device.pair.list'),
+      approve: (deviceId: string) =>
+        callGateway('device.pair.approve', { deviceId }),
+      reject: (deviceId: string) =>
+        callGateway('device.pair.reject', { deviceId }),
+      remove: (deviceId: string) =>
+        callGateway('device.pair.remove', { deviceId }),
+    },
+    token: {
+      rotate: (deviceId: string) =>
+        callGateway('device.token.rotate', { deviceId }),
+      revoke: (deviceId: string) =>
+        callGateway('device.token.revoke', { deviceId }),
+    },
+  },
+
+  // ========================================
+  // Phase 1: 工具箱 (Tools)
+  // ========================================
+  tools: {
+    catalog: (agentId?: string) =>
+      callGateway('tools.catalog', { agentId }),
+    effective: (sessionKey: string) =>
+      callGateway('tools.effective', { sessionKey }),
+    invoke: (toolName: string, args: unknown, sessionKey?: string) =>
+      callGateway('tools.invoke', { toolName, args, sessionKey }),
+  },
+  commands: {
+    list: (agentId?: string) =>
+      callGateway('commands.list', { agentId }),
+  },
+
+  // ========================================
+  // Phase 1: 环境/节点 (Environments & Nodes)
+  // ========================================
+  environments: {
+    list: () => callGateway('environments.list'),
+    status: () => callGateway('environments.status'),
+  },
+  node: {
+    list: () => callGateway('node.list'),
+    describe: (nodeId: string) =>
+      callGateway('node.describe', { nodeId }),
+    rename: (nodeId: string, name: string) =>
+      callGateway('node.rename', { nodeId, name }),
+    pair: {
+      list: () => callGateway('node.pair.list'),
+      approve: (nodeId: string) =>
+        callGateway('node.pair.approve', { nodeId }),
+      reject: (nodeId: string) =>
+        callGateway('node.pair.reject', { nodeId }),
+      remove: (nodeId: string) =>
+        callGateway('node.pair.remove', { nodeId }),
+    },
+    invoke: (nodeId: string, command: string, args?: unknown) =>
+      callGateway('node.invoke', { nodeId, command, args }),
+  },
+
+  // ========================================
+  // Phase 1: 工件管理 (Artifacts)
+  // ========================================
+  artifacts: {
+    list: (sessionKey: string) =>
+      callGateway('artifacts.list', { sessionKey }),
+    get: (artifactId: string) =>
+      callGateway('artifacts.get', { artifactId }),
+    download: (artifactId: string) =>
+      callGateway('artifacts.download', { artifactId }),
+  },
+
+  // ========================================
+  // Phase 2: 语音/TTS
+  // ========================================
+  tts: {
+    status: () => callGateway('tts.status'),
+    providers: () => callGateway('tts.providers'),
+    personas: () => callGateway('tts.personas'),
+    enable: () => callGateway('tts.enable'),
+    disable: () => callGateway('tts.disable'),
+    setProvider: (provider: string) =>
+      callGateway('tts.setProvider', { provider }),
+    setPersona: (persona: string) =>
+      callGateway('tts.setPersona', { persona }),
+    convert: (text: string, options?: Record<string, unknown>) =>
+      callGateway('tts.convert', { text, ...options }),
+  },
+  talk: {
+    catalog: () => callGateway('talk.catalog'),
+    config: () => callGateway('talk.config'),
+    mode: (mode?: string) =>
+      callGateway('talk.mode', mode !== undefined ? { mode } : {}),
+    speak: (text: string) =>
+      callGateway('talk.speak', { text }),
+  },
+  voicewake: {
+    get: () => callGateway('voicewake.get'),
+    set: (config: unknown) =>
+      callGateway('voicewake.set', { config }),
+    routing: {
+      get: () => callGateway('voicewake.routing.get'),
+      set: (rules: unknown) =>
+        callGateway('voicewake.routing.set', { rules }),
+    },
+  },
+
+  // ========================================
+  // Phase 2: 执行审批 & 插件审批
+  // ========================================
+  execApproval: {
+    get: (approvalId: string) =>
+      callGateway('exec.approval.get', { approvalId }),
+    list: () => callGateway('exec.approval.list'),
+    resolve: (approvalId: string, approved: boolean, reason?: string) =>
+      callGateway('exec.approval.resolve', { approvalId, approved, reason }),
+  },
+  execApprovals: {
+    get: () => callGateway('exec.approvals.get'),
+    set: (config: unknown) =>
+      callGateway('exec.approvals.set', { config }),
+    nodeGet: (nodeId: string) =>
+      callGateway('exec.approvals.node.get', { nodeId }),
+    nodeSet: (nodeId: string, config: unknown) =>
+      callGateway('exec.approvals.node.set', { nodeId, config }),
+  },
+  pluginApproval: {
+    list: () => callGateway('plugin.approval.list'),
+    resolve: (approvalId: string, approved: boolean) =>
+      callGateway('plugin.approval.resolve', { approvalId, approved }),
+  },
+
+  // ========================================
+  // Phase 2: 密钥管理
+  // ========================================
+  secrets: {
+    reload: () => callGateway('secrets.reload'),
+    resolve: (commandId?: string) =>
+      callGateway('secrets.resolve', { commandId }),
+  },
+
+  // ========================================
+  // Phase 3: 更新 & 系统
+  // ========================================
+  update: {
+    status: () => callGateway('update.status'),
+    run: () => callGateway('update.run'),
+  },
+  gateway: {
+    identity: {
+      get: () => callGateway('gateway.identity.get'),
+    },
+    restart: {
+      request: (reason?: string) =>
+        callGateway('gateway.restart.request', { reason }),
+      preflight: () => callGateway('gateway.restart.preflight'),
+    },
+  },
+  system: {
+    presence: () => callGateway('system-presence'),
+    event: (event: string, data: unknown) =>
+      callGateway('system-event', { event, data }),
+  },
+  diagnostics: {
+    stability: () => callGateway('diagnostics.stability'),
+  },
+  status: () => callGateway('status'),
+  wizard: {
+    start: () => callGateway('wizard.start'),
+    status: () => callGateway('wizard.status'),
+    cancel: () => callGateway('wizard.cancel'),
+  },
+  push: {
+    vapidPublicKey: () => callGateway('push.web.vapidPublicKey'),
+    subscribe: (subscription: unknown) =>
+      callGateway('push.web.subscribe', { subscription }),
+    unsubscribe: () => callGateway('push.web.unsubscribe'),
   },
 }
 

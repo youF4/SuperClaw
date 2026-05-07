@@ -43,6 +43,31 @@ const router = createRouter({
           component: () => import('@/views/Agents.vue'),
         },
         {
+          path: 'memory',
+          name: 'memory',
+          component: () => import('@/views/Memory.vue'),
+        },
+        {
+          path: 'devices',
+          name: 'devices',
+          component: () => import('@/views/Devices.vue'),
+        },
+        {
+          path: 'tools',
+          name: 'tools',
+          component: () => import('@/views/Tools.vue'),
+        },
+        {
+          path: 'environments',
+          name: 'environments',
+          component: () => import('@/views/Environments.vue'),
+        },
+        {
+          path: 'artifacts',
+          name: 'artifacts',
+          component: () => import('@/views/Artifacts.vue'),
+        },
+        {
           path: 'settings',
           name: 'settings',
           component: () => import('@/views/Settings.vue'),
