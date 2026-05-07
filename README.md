@@ -1,6 +1,8 @@
 # SuperClaw
 
-**OpenClaw 的中文桌面客户端，功能比 ClawX 更完整。**
+**OpenClaw 的中文桌面客户端（Windows 专用）**
+
+基于 Tauri 2.0 构建，内嵌 OpenClaw Gateway 运行时，开箱即用。
 
 ## 功能特性
 
@@ -24,21 +26,16 @@
 - **后端语言**: Rust
 - **前端框架**: Vue 3 + TypeScript
 - **状态管理**: Pinia
-- **构建工具**: Vite
+- **构建工具**: Vite 6
+- **内嵌运行时**: Node.js + OpenClaw Gateway
 
-## 安装
+## 下载安装
 
-### Windows
+- 从 [Releases](https://github.com/youF4/SuperClaw/releases) 页面下载最新版本的 `SuperClaw_0.2.0_x64-setup.exe`
+- 运行安装包，按提示完成安装
+- 启动 SuperClaw，程序会自动启动 OpenClaw Gateway
 
-下载 `SuperClaw_0.1.0_x64-setup.exe` 并运行。
-
-### macOS
-
-下载 `SuperClaw_0.1.0_x64.dmg` 并安装。
-
-### Linux
-
-下载 `SuperClaw_0.1.0_amd64.AppImage` 并运行。
+> ⚠️ 本软件仅支持 Windows x64 平台。
 
 ## 开发
 
@@ -46,56 +43,61 @@
 
 - Node.js 18+
 - Rust 1.70+
-- pnpm / npm
+- npm
 
-### 本地开发
+### 本地构建
 
 ```bash
 # 克隆项目
-git clone https://github.com/your-repo/SuperClaw.git
+git clone https://github.com/youF4/SuperClaw.git
 cd SuperClaw
 
-# 安装依赖
+# 安装前端依赖
 npm install
 
-# 开发模式
-npm run tauri dev
-
-# 构建
+# 构建安装包
 npm run tauri build
 ```
+
+构建产物位于 `src-tauri/target/release/bundle/nsis/SuperClaw_0.2.0_x64-setup.exe`。
 
 ## 项目结构
 
 ```
 SuperClaw/
-├── src-tauri/          # Rust 后端
+├── src/                    # Vue 3 + TypeScript 前端
+│   ├── lib/                #   Gateway 客户端、WebSocket、配置
+│   ├── stores/             #   Pinia 状态管理（9 个 store）
+│   ├── views/              #   页面组件（聊天、通道、模型等）
+│   ├── components/         #   UI 组件
+│   └── composables/        #   可组合函数（通知、附件上传）
+├── src-tauri/              # Tauri + Rust 后端
 │   ├── src/
-│   │   ├── main.rs     # Tauri 入口
-│   │   ├── gateway.rs  # Gateway 进程管理
-│   │   └── tray.rs     # 系统托盘
-│   └── Cargo.toml
-├── src/                # Vue 前端
-│   ├── lib/
-│   │   ├── gateway.ts  # HTTP API 客户端
-│   │   └── websocket.ts # WebSocket 客户端
-│   ├── stores/         # Pinia 状态管理
-│   ├── views/          # 页面组件
-│   └── components/     # UI 组件
-├── openclaw-dist/      # 内嵌的 OpenClaw
-└── package.json
+│   │   ├── main.rs         #   Tauri 入口
+│   │   ├── gateway.rs      #   Gateway 进程管理
+│   │   └── tray.rs         #   系统托盘
+│   ├── capabilities/       #   Tauri 2 权限配置
+│   └── tauri.conf.json     #   Tauri 配置
+├── openclaw-dist/          # 内嵌的 OpenClaw v2026.5.6 运行时分发包
+│   ├── node.exe            #   Node.js 运行时
+│   ├── openclaw.mjs        #   OpenClaw 入口
+│   ├── dist/               #   编译后的 OpenClaw 源码
+│   └── node_modules/       #   依赖
+├── build.ps1               # Windows 构建脚本
+├── package.json
+├── vite.config.ts
+└── tsconfig.json
 ```
 
-## 与 ClawX 的对比
+## 常见问题
 
-| 功能 | ClawX | SuperClaw |
-|------|-------|-----------|
-| 语言 | 英文为主 | 原生中文 |
-| 框架 | Electron | Tauri |
-| 安装包大小 | ~150MB | ~10-20MB |
-| Agents 管理 | ❌ | ✅ |
-| 用量统计 | ❌ | ✅ |
-| 日志查看 | ❌ | ✅ |
+**Q: Gateway 启动失败？**
+
+确保没有其他程序占用 `22333` 端口。查看日志窗口了解详细错误信息。
+
+**Q: 如何更新 OpenClaw 版本？**
+
+`openclaw-dist/` 是预建分发包，更新需要重新从 OpenClaw 源码构建后替换该目录。
 
 ## 许可证
 
@@ -103,6 +105,6 @@ MIT
 
 ## 致谢
 
-- [OpenClaw](https://github.com/openclaw/openclaw) - 核心 AI Agent 框架
-- [Tauri](https://tauri.app/) - 跨平台桌面应用框架
-- [Vue 3](https://vuejs.org/) - 前端框架
+- [OpenClaw](https://github.com/openclaw/openclaw) — 核心 AI Agent 框架
+- [Tauri](https://tauri.app/) — 跨平台桌面应用框架
+- [Vue 3](https://vuejs.org/) — 前端框架
