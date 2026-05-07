@@ -1,10 +1,16 @@
-use std::process::{Child, Command, ExitStatus};
+use std::process::{Child, Command, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Mutex;
 use std::path::PathBuf;
 use std::time::Duration;
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 use tokio::net::TcpStream;
 use tokio::time::sleep;
+
+use crate::log;
+
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 static GATEWAY_PROCESS: Mutex<Option<Child>> = Mutex::new(None);
 static GATEWAY_RUNNING: AtomicBool = AtomicBool::new(false);
@@ -138,26 +144,31 @@ pub async fn start_gateway() -> Result<String, String> {
     
     let data_dir = get_openclaw_data_dir();
     
-    println!("[SuperClaw] Starting OpenClaw Gateway...");
-    println!("[SuperClaw] Node path: {:?}", node_path);
-    println!("[SuperClaw] Entry path: {:?}", entry_path);
-    println!("[SuperClaw] Working directory: {:?}", cwd);
-    println!("[SuperClaw] Data directory: {:?}", data_dir);
+    log::info(&format!("Starting OpenClaw Gateway..."));
+    log::info(&format!("Node path: {:?}", node_path));
+    log::info(&format!("Entry path: {:?}", entry_path));
+    log::info(&format!("Working directory: {:?}", cwd));
+    log::info(&format!("Data directory: {:?}", data_dir));
     
     // 确保数据目录存在
     std::fs::create_dir_all(&data_dir)
         .map_err(|e| format!("Failed to create data directory: {}", e))?;
 
-    let child = Command::new(&node_path)
+    let data_dir_str = data_dir.to_str().ok_or("Invalid data directory path")?.to_string();
+    let mut cmd = Command::new(&node_path);
+    cmd
         .arg(&entry_path)
         .arg("gateway")
-        .arg("start")
+        .arg("--allow-unconfigured")
         .arg("--port")
         .arg("22333")
-        .arg("--data-dir")
-        .arg(data_dir.to_str().ok_or("Invalid data directory path")?)
         .current_dir(&cwd)
-        .spawn()
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .env("OPENCLAW_STATE_DIR", &data_dir_str);
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    let child = cmd.spawn()
         .map_err(|e| format!("Failed to start gateway: {} (node: {:?})", e, node_path))?;
 
     let pid = child.id();
@@ -171,29 +182,28 @@ pub async fn start_gateway() -> Result<String, String> {
     GATEWAY_PID.store(pid, Ordering::SeqCst);
     GATEWAY_RUNNING.store(true, Ordering::SeqCst);
 
-    // 健康检查：轮询端口是否可连接
-    println!("[SuperClaw] Waiting for Gateway to be ready...");
+    // 健康检查：轮询端口是否可连接（最多等 30 秒，首次启动可能需要安装依赖）
+    log::info("Waiting for Gateway to be ready...");
     let mut connected = false;
-    for i in 0..20 {
+    for i in 0..60 {
         sleep(Duration::from_millis(500)).await;
         match TcpStream::connect("127.0.0.1:22333").await {
             Ok(_) => {
                 connected = true;
-                println!("[SuperClaw] Gateway is ready after {} attempts", i + 1);
+                log::info(&format!("Gateway is ready after {} attempts", i + 1));
                 break;
             }
             Err(_) => {
-                if i == 19 {
-                    println!("[SuperClaw] Gateway failed to start within timeout");
+                if i == 59 {
+                    log::error("Gateway failed to start within timeout");
                 }
             }
         }
     }
 
     if !connected {
-        // 健康检查失败，停止进程并返回错误
         let _ = stop_gateway().await;
-        return Err("Gateway failed to start: port 22333 is not responding after 10 seconds".to_string());
+        return Err("Gateway failed to start: port 22333 is not responding after 30 seconds".to_string());
     }
 
     Ok(format!("Gateway started with PID: {}", pid))
@@ -209,14 +219,9 @@ pub async fn stop_gateway() -> Result<(), String> {
     
     if let Some(mut child) = child {
         let pid = child.id();
-        println!("[SuperClaw] Stopping Gateway (PID: {})...", pid);
-        
-        // 先发送终止信号
+        log::info(&format!("Stopping Gateway (PID: {})...", pid));
         child.kill().ok();
-        
-        // 在 blocking 线程中等待进程退出，避免僵尸进程
         let result = tokio::task::spawn_blocking(move || -> Result<ExitStatus, String> {
-            // 等待进程退出，超时 5 秒
             for _ in 0..50 {
                 std::thread::sleep(Duration::from_millis(100));
                 match child.try_wait() {
@@ -225,15 +230,13 @@ pub async fn stop_gateway() -> Result<(), String> {
                     Err(e) => return Err(format!("Failed to wait for gateway: {}", e)),
                 }
             }
-            // 超时后强制等待（阻塞直到退出）
-            println!("[SuperClaw] Force waiting for Gateway to exit...");
+            log::info("Force waiting for Gateway to exit...");
             child.wait().map_err(|e| format!("Failed to wait for gateway: {}", e))
         })
         .await
         .map_err(|e| format!("Spawn blocking error: {}", e))?
         .map_err(|e| e)?;
-        
-        println!("[SuperClaw] Gateway stopped (exit: {:?})", result);
+        log::info(&format!("Gateway stopped (exit: {:?})", result));
     }
 
     GATEWAY_RUNNING.store(false, Ordering::SeqCst);

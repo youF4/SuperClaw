@@ -8,8 +8,8 @@
                     "build":  "vite build",
                     "preview":  "vite preview",
                     "tauri":  "tauri",
-                    "build:openclaw":  "cd openclaw \u0026\u0026 npm run build",
-                    "build:all":  "npm run build:openclaw \u0026\u0026 npm run build \u0026\u0026 npm run tauri build",
+                    "build:install-deps":  "cd openclaw-dist \u0026\u0026 npm install --ignore-scripts",
+                    "build:all":  "npm run build:install-deps \u0026\u0026 npm run build \u0026\u0026 npm run tauri build",
                     "version:patch":  "powershell -NoProfile -File scripts/version.ps1 -Part patch",
                     "version:minor":  "powershell -NoProfile -File scripts/version.ps1 -Part minor",
                     "version:major":  "powershell -NoProfile -File scripts/version.ps1 -Part major"

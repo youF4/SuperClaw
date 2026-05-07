@@ -30,3 +30,9 @@ src-tauri/gen/schemas/
 
 # openclaw source (not needed for runtime)
 openclaw/
+
+# openclaw-dist dependencies (installed before build)
+openclaw-dist/node_modules/
+
+# Runtime data (created by app at runtime)
+data/
