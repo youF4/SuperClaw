@@ -56,9 +56,9 @@ async function fetchLogs() {
   loadingLogs.value = false
 }
 
-function switchTab(tab: 'usage' | 'config' | 'logs' | 'update' | 'about') {
+async function switchTab(tab: 'usage' | 'config' | 'logs' | 'update' | 'about') {
   activeTab.value = tab
-  loadCurrentTab()
+  await loadCurrentTab()
 }
 
 function formatNumber(num: number): string {

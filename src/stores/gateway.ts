@@ -12,7 +12,11 @@ export const useGatewayStore = defineStore('gateway', () => {
     loading.value = true
     try {
       const result = await invoke<string>('start_gateway')
-      console.log('[Gateway]', result)
+      // 解析 result 中的 PID，格式: "Gateway started with PID: 1234"
+      const pidMatch = result.match(/PID:?\s*(\d+)/)
+      if (pidMatch) {
+        pid.value = parseInt(pidMatch[1], 10)
+      }
       running.value = true
       notify('Gateway 已启动', 'success')
     } catch (error) {

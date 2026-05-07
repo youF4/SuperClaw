@@ -2,19 +2,14 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import gatewayApi from '@/lib/gateway'
 import { notify } from '@/composables/useNotification'
+import type { MessageAttachment } from '@/lib/types'
 
 export interface Message {
   id: string
   role: 'user' | 'assistant' | 'system'
   content: string
   createdAt: number
-  attachments?: Attachment[]
-}
-
-export interface Attachment {
-  type: 'image' | 'file'
-  url: string
-  name?: string
+  attachments?: MessageAttachment[]
 }
 
 export const useChatStore = defineStore('chat', () => {

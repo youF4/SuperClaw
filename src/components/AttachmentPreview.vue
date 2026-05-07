@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Attachment } from '@/composables/useAttachments'
+import type { FileAttachment as Attachment } from '@/lib/types'
 
 defineProps<{
   attachment: Attachment

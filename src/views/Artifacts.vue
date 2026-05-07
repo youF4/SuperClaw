@@ -82,18 +82,32 @@ async function selectArtifact(artifactId: string) {
   detailLoading.value = false
 }
 
+/** 校验 URL 是否安全，防止 XSS */
+function isSafeUrl(url: string): boolean {
+  const allowedProtocols = ['https:', 'http:', 'data:', 'blob:']
+  try {
+    const parsed = new URL(url)
+    return allowedProtocols.includes(parsed.protocol)
+  } catch {
+    return false
+  }
+}
+
 async function downloadArtifact(artifactId: string) {
   const res = await gatewayApi.artifacts.download(artifactId)
   if (res.ok && res.result) {
     const data = res.result as { data?: string; url?: string; filename?: string }
-    if (data.url) {
-      window.open(data.url, '_blank')
-    } else if (data.data) {
-      // 如果是 base64，创建一个下载链接
+    if (data.url && isSafeUrl(data.url)) {
+      window.open(data.url, '_blank', 'noopener,noreferrer')
+    } else if (data.data && isSafeUrl(data.data)) {
       const link = document.createElement('a')
+      link.rel = 'noopener noreferrer'
       link.href = data.data
       link.download = data.filename || `artifact-${artifactId}`
       link.click()
+    } else {
+      notify('下载地址不合法，已阻止', 'error')
+      return
     }
     notify('工件下载已触发', 'success')
   } else {

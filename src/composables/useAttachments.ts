@@ -1,20 +1,10 @@
 import { ref } from 'vue'
-import { invoke } from '@tauri-apps/api/core'
+import { invoke, convertFileSrc } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
-
-export interface Attachment {
-  id: string
-  name: string
-  type: 'image' | 'file' | 'audio' | 'video'
-  size: number
-  path?: string
-  url?: string
-  preview?: string
-}
+import type { FileAttachment as Attachment } from '@/lib/types'
 
 export function useAttachments() {
   const attachments = ref<Attachment[]>([])
-  const uploading = ref(false)
 
   // 选择文件
   async function selectFile() {
@@ -81,14 +71,11 @@ export function useAttachments() {
     }
 
     // 如果是图片，生成预览
-    if (type === 'image' && filePath) {
+    if (type === 'image') {
       try {
-        // 使用 Tauri 的 convertFileSrc 转换为可访问的 URL
-        const { convertFileSrc } = await import('@tauri-apps/api/core')
         attachment.url = convertFileSrc(filePath)
         attachment.preview = attachment.url
       } catch {
-        // 如果失败，使用文件路径
         attachment.url = `file://${filePath}`
       }
     }
@@ -117,7 +104,6 @@ export function useAttachments() {
 
   return {
     attachments,
-    uploading,
     selectFile,
     addFile,
     removeAttachment,

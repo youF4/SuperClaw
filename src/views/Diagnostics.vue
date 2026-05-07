@@ -2,7 +2,6 @@
 import { ref, onMounted } from 'vue'
 import gatewayApi from '@/lib/gateway'
 import { useGatewayStore } from '@/stores/gateway'
-import { notify } from '@/composables/useNotification'
 
 const gatewayStore = useGatewayStore()
 
@@ -134,7 +133,7 @@ function statusLabel(s: string): string {
 
             <div v-if="stability.issues && stability.issues.length" class="issues-panel">
               <h4>异常信息</h4>
-              <div v-for="issue in stability.issues" :key="issue" class="issue-item">
+              <div v-for="(issue, index) in stability.issues" :key="index" class="issue-item">
                 ⚠️ {{ issue }}
               </div>
             </div>

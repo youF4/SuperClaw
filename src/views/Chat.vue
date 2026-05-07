@@ -3,14 +3,11 @@ import { ref, onMounted, watch, nextTick } from 'vue'
 import { useSessionStore } from '@/stores/session'
 import { useChatStore } from '@/stores/chat'
 import { useGatewayStore } from '@/stores/gateway'
-import { useAttachments } from '@/composables/useAttachments'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
-import AttachmentPreview from '@/components/AttachmentPreview.vue'
 
 const sessionStore = useSessionStore()
 const chatStore = useChatStore()
 const gatewayStore = useGatewayStore()
-const { attachments, selectFile, removeAttachment, clearAttachments } = useAttachments()
 
 const inputText = ref('')
 const messagesContainer = ref<HTMLElement | null>(null)
@@ -48,18 +45,13 @@ onMounted(async () => {
 })
 
 async function sendMessage() {
-  if ((!inputText.value.trim() && attachments.value.length === 0) || !sessionStore.currentSessionKey) return
+  if (!inputText.value.trim() || !sessionStore.currentSessionKey) return
   if (chatStore.streaming) return
 
   const text = inputText.value.trim()
   inputText.value = ''
 
-  // TODO: 处理附件上传
-  // 目前先发送文本
   await chatStore.sendMessage(sessionStore.currentSessionKey, text)
-  
-  // 清空附件
-  clearAttachments()
   scrollToBottom()
 }
 
@@ -156,20 +148,7 @@ function formatTime(timestamp: number): string {
 
       <!-- 输入区域 -->
       <div class="input-area">
-        <!-- 附件预览 -->
-        <div v-if="attachments.length > 0" class="attachments-preview">
-          <AttachmentPreview
-            v-for="attachment in attachments"
-            :key="attachment.id"
-            :attachment="attachment"
-            @remove="removeAttachment"
-          />
-        </div>
-
         <div class="input-row">
-          <button @click="selectFile" class="attach-btn" :disabled="!gatewayStore.running">
-            📎
-          </button>
           <textarea
             v-model="inputText"
             placeholder="输入消息... (Enter 发送)"
@@ -188,7 +167,7 @@ function formatTime(timestamp: number): string {
             <button
               v-else
               @click="sendMessage"
-              :disabled="(!inputText.trim() && attachments.length === 0) || !gatewayStore.running"
+              :disabled="!inputText.trim() || !gatewayStore.running"
             >
               发送
             </button>

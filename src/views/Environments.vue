@@ -77,12 +77,14 @@ async function toggleNodeDetail(nodeId: string) {
     return
   }
   expandedNode.value = nodeId
+  nodeDetail.value = null
   detailLoading.value = true
   const res = await gatewayApi.node.describe(nodeId)
   if (res.ok && res.result) {
     nodeDetail.value = res.result as NodeDetail
   } else {
     notify(`获取节点详情失败: ${res.error || '未知错误'}`, 'error')
+    expandedNode.value = null
   }
   detailLoading.value = false
 }

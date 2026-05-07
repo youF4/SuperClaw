@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, watch } from 'vue'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
 import DOMPurify from 'dompurify'
@@ -8,27 +8,39 @@ const props = defineProps<{
   content: string
 }>()
 
-// 配置 marked
-marked.setOptions({
+// 使用 modern marked API 配置
+marked.use({
   breaks: true,
   gfm: true,
+  renderer: {
+    code({ text, lang }: { text: string; lang?: string }) {
+      if (lang && hljs.getLanguage(lang)) {
+        return `<pre><code class="hljs language-${lang}">${hljs.highlight(text, { language: lang }).value}</code></pre>`
+      }
+      return `<pre><code class="hljs">${hljs.highlightAuto(text).value}</code></pre>`
+    },
+  },
 })
 
-// 自定义代码高亮
-const renderer = new marked.Renderer()
-renderer.code = ({ text, lang }: { text: string; lang?: string }) => {
-  if (lang && hljs.getLanguage(lang)) {
-    return `<pre><code class="hljs language-${lang}">${hljs.highlight(text, { language: lang }).value}</code></pre>`
-  }
-  return `<pre><code class="hljs">${hljs.highlightAuto(text).value}</code></pre>`
-}
-marked.use({ renderer })
+// 异步渲染 Markdown 内容
+const htmlContent = ref('')
 
-const htmlContent = computed(() => {
-  const rawHtml = marked.parse(props.content) as string
-  // 使用 DOMPurify 净化 HTML，防止 XSS 攻击
-  return DOMPurify.sanitize(rawHtml)
-})
+watch(
+  () => props.content,
+  async (content) => {
+    if (!content) {
+      htmlContent.value = ''
+      return
+    }
+    try {
+      const raw = await marked.parse(content)
+      htmlContent.value = DOMPurify.sanitize(raw)
+    } catch {
+      htmlContent.value = DOMPurify.sanitize(content)
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
