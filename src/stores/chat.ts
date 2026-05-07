@@ -73,6 +73,13 @@ export const useChatStore = defineStore('chat', () => {
     streaming.value = false
   }
 
+  function addRealtimeMessage(msg: unknown) {
+    // 去重：避免 WebSocket 和 HTTP 响应同时添加同一条消息
+    const msgWithId = msg as { id?: string }
+    if (msgWithId?.id && messages.value.some((m) => m.id === msgWithId.id)) return
+    messages.value.push(msg as Message)
+  }
+
   function clear() {
     messages.value = []
   }
@@ -83,6 +90,7 @@ export const useChatStore = defineStore('chat', () => {
     streaming,
     fetchHistory,
     sendMessage,
+    addRealtimeMessage,
     abort,
     clear,
   }
