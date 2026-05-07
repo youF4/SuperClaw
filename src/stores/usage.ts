@@ -18,7 +18,7 @@ export const useUsageStore = defineStore('usage', () => {
 
   async function fetchStats() {
     loading.value = true
-    
+
     try {
       const statusRes = await gatewayApi.usage.status()
       if (statusRes.ok && statusRes.result) {
@@ -29,7 +29,7 @@ export const useUsageStore = defineStore('usage', () => {
     } catch (e) {
       notify(`获取用量统计出错: ${e}`, 'error')
     }
-    
+
     loading.value = false
   }
 

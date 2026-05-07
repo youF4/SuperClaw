@@ -16,6 +16,8 @@ const menuItems = [
   { path: '/voice', label: '语音/TTS', icon: '🔊' },
   { path: '/approvals', label: '审批中心', icon: '✅' },
   { path: '/secrets', label: '密钥管理', icon: '🔐' },
+  { path: '/diagnostics', label: '系统诊断', icon: '🏥' },
+  { path: '/push', label: '推送通知', icon: '🔔' },
   { path: '/settings', label: '设置', icon: '⚙️' },
 ]
 </script>

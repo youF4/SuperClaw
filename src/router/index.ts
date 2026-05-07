@@ -83,6 +83,16 @@ const router = createRouter({
           component: () => import('@/views/Secrets.vue'),
         },
         {
+          path: 'diagnostics',
+          name: 'diagnostics',
+          component: () => import('@/views/Diagnostics.vue'),
+        },
+        {
+          path: 'push',
+          name: 'push',
+          component: () => import('@/views/PushNotifications.vue'),
+        },
+        {
           path: 'settings',
           name: 'settings',
           component: () => import('@/views/Settings.vue'),

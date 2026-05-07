@@ -176,6 +176,19 @@ async function runUpdate() {
             <span class="model-cost">{{ formatCost(data.cost) }}</span>
           </div>
         </div>
+
+        <h3 v-if="usageStore.stats.byDay && usageStore.stats.byDay.length">按日统计</h3>
+        <div v-if="usageStore.stats.byDay && usageStore.stats.byDay.length" class="day-stats">
+          <div
+            v-for="day in usageStore.stats.byDay"
+            :key="day.date"
+            class="day-stat-item"
+          >
+            <span class="day-date">{{ day.date }}</span>
+            <span class="day-tokens">{{ formatNumber(day.tokens) }} tokens</span>
+            <span class="day-cost">{{ formatCost(day.cost) }}</span>
+          </div>
+        </div>
       </div>
 
       <div v-else class="empty">暂无用量数据</div>
@@ -387,6 +400,19 @@ h3 {
 .model-stat-item:last-child {
   border-bottom: none;
 }
+
+.day-stats {
+  background: #1a1a2e; border-radius: 12px;
+}
+.day-stat-item {
+  padding: 10px 16px; display: grid;
+  grid-template-columns: 1fr auto auto; gap: 16px;
+  border-bottom: 1px solid #2a2a4e; font-size: 13px;
+}
+.day-stat-item:last-child { border-bottom: none; }
+.day-date { color: #fff; }
+.day-tokens { color: #a0a0c0; }
+.day-cost { color: #22c55e; }
 
 .model-name {
   color: #fff;
