@@ -68,6 +68,21 @@ const router = createRouter({
           component: () => import('@/views/Artifacts.vue'),
         },
         {
+          path: 'voice',
+          name: 'voice',
+          component: () => import('@/views/Voice.vue'),
+        },
+        {
+          path: 'approvals',
+          name: 'approvals',
+          component: () => import('@/views/Approvals.vue'),
+        },
+        {
+          path: 'secrets',
+          name: 'secrets',
+          component: () => import('@/views/Secrets.vue'),
+        },
+        {
           path: 'settings',
           name: 'settings',
           component: () => import('@/views/Settings.vue'),

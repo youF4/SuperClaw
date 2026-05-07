@@ -13,6 +13,9 @@ const menuItems = [
   { path: '/artifacts', label: '工件管理', icon: '📦' },
   { path: '/devices', label: '设备管理', icon: '📱' },
   { path: '/environments', label: '环境节点', icon: '🖥️' },
+  { path: '/voice', label: '语音/TTS', icon: '🔊' },
+  { path: '/approvals', label: '审批中心', icon: '✅' },
+  { path: '/secrets', label: '密钥管理', icon: '🔐' },
   { path: '/settings', label: '设置', icon: '⚙️' },
 ]
 </script>

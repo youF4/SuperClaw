@@ -3,15 +3,19 @@ import { ref, onMounted } from 'vue'
 import { useGatewayStore } from '@/stores/gateway'
 import { useUsageStore } from '@/stores/usage'
 import gatewayApi from '@/lib/gateway'
+import { notify } from '@/composables/useNotification'
 
 const gatewayStore = useGatewayStore()
 const usageStore = useUsageStore()
 
-const activeTab = ref<'usage' | 'config' | 'logs' | 'about'>('usage')
+const activeTab = ref<'usage' | 'config' | 'logs' | 'update' | 'about'>('usage')
 const config = ref<Record<string, unknown>>({})
 const logs = ref<string[]>([])
 const loadingConfig = ref(false)
 const loadingLogs = ref(false)
+const updateStatus = ref<{ available: boolean; currentVersion?: string; latestVersion?: string } | null>(null)
+const updateLoading = ref(false)
+const updating = ref(false)
 
 onMounted(async () => {
   await gatewayStore.checkStatus()
@@ -52,7 +56,7 @@ async function fetchLogs() {
   loadingLogs.value = false
 }
 
-function switchTab(tab: 'usage' | 'config' | 'logs' | 'about') {
+function switchTab(tab: 'usage' | 'config' | 'logs' | 'update' | 'about') {
   activeTab.value = tab
   loadCurrentTab()
 }
@@ -63,6 +67,29 @@ function formatNumber(num: number): string {
 
 function formatCost(cost: number): string {
   return `$${cost.toFixed(4)}`
+}
+
+async function checkUpdate() {
+  updateLoading.value = true
+  const res = await gatewayApi.update.status()
+  if (res.ok && res.result) {
+    updateStatus.value = res.result as { available: boolean; currentVersion?: string; latestVersion?: string }
+  } else {
+    notify(`检查更新失败: ${res.error || '未知错误'}`, 'error')
+  }
+  updateLoading.value = false
+}
+
+async function runUpdate() {
+  if (!confirm('确定要执行更新吗？Gateway 将会重启。')) return
+  updating.value = true
+  const res = await gatewayApi.update.run()
+  if (res.ok) {
+    notify('更新已启动，Gateway 正在重启...', 'success')
+  } else {
+    notify(`更新失败: ${res.error || '未知错误'}`, 'error')
+    updating.value = false
+  }
 }
 </script>
 
@@ -98,6 +125,12 @@ function formatCost(cost: number): string {
         @click="switchTab('logs')"
       >
         日志
+      </button>
+      <button
+        :class="{ active: activeTab === 'update' }"
+        @click="switchTab('update')"
+      >
+        更新
       </button>
       <button
         :class="{ active: activeTab === 'about' }"
@@ -169,6 +202,41 @@ function formatCost(cost: number): string {
           <div v-for="(log, index) in logs" :key="index" class="log-line">
             {{ log }}
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 更新 -->
+    <div v-if="activeTab === 'update'" class="tab-content">
+      <div class="update-section">
+        <h3>Gateway 更新</h3>
+        <button @click="checkUpdate" :disabled="updateLoading" class="update-check-btn">
+          {{ updateLoading ? '检查中...' : '检查更新' }}
+        </button>
+
+        <div v-if="updateStatus" class="update-info">
+          <div class="update-row">
+            <span class="label">当前版本：</span>
+            <span class="value">{{ updateStatus.currentVersion || '-' }}</span>
+          </div>
+          <div class="update-row">
+            <span class="label">最新版本：</span>
+            <span class="value">{{ updateStatus.latestVersion || '-' }}</span>
+          </div>
+          <div class="update-row">
+            <span class="label">状态：</span>
+            <span class="badge" :class="updateStatus.available ? 'available' : 'latest'">
+              {{ updateStatus.available ? '有可用更新' : '已是最新版' }}
+            </span>
+          </div>
+          <button
+            v-if="updateStatus.available"
+            @click="runUpdate"
+            :disabled="updating"
+            class="update-run-btn"
+          >
+            {{ updating ? '更新中...' : '立即更新' }}
+          </button>
         </div>
       </div>
     </div>
@@ -403,6 +471,28 @@ h3 {
   color: #888;
   margin-bottom: 16px;
 }
+
+.update-section {
+  background: #1a1a2e; padding: 24px; border-radius: 12px; border: 1px solid #2a2a4e;
+}
+.update-section h3 { margin: 0 0 20px; color: #fff; font-size: 18px; }
+.update-check-btn {
+  padding: 10px 20px; background: #4a4a8e; border: none; border-radius: 8px;
+  color: #fff; cursor: pointer; font-size: 14px;
+}
+.update-check-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.update-info { margin-top: 20px; }
+.update-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #2a2a4e; }
+.update-row:last-child { border-bottom: none; }
+.update-row .label { color: #888; font-size: 14px; min-width: 100px; }
+.update-row .value { color: #e0e0e0; }
+.badge.available { background: rgba(251, 191, 36, 0.2); color: #fbbf24; padding: 4px 10px; border-radius: 12px; font-size: 12px; }
+.badge.latest { background: rgba(34, 197, 94, 0.2); color: #22c55e; padding: 4px 10px; border-radius: 12px; font-size: 12px; }
+.update-run-btn {
+  margin-top: 20px; padding: 12px 24px; background: #22c55e; border: none;
+  border-radius: 8px; color: #fff; cursor: pointer; font-size: 14px;
+}
+.update-run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .description {
   color: #a0a0c0;
