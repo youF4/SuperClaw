@@ -28,5 +28,5 @@ Thumbs.db
 # Tauri generated
 src-tauri/gen/schemas/
 
-# openclaw source (not the distribution)
-openclaw/
+# openclaw distribution (pre-built, not source)
+openclaw-dist/
