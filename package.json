@@ -1,6 +1,6 @@
 {
     "name":  "superclaw",
-    "version":  "0.2.1",
+    "version":  "0.2.2",
     "description":  "OpenClaw Chinese Desktop Client",
     "type":  "module",
     "scripts":  {
