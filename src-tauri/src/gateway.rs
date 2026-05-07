@@ -50,6 +50,7 @@ fn get_openclaw_entry() -> PathBuf {
 
 /// 获取 OpenClaw 工作目录
 fn get_openclaw_cwd() -> PathBuf {
+    // 获取应用目录
     let exe_dir = std::env::current_exe()
         .expect("Failed to get current exe path")
         .parent()
@@ -64,6 +65,25 @@ fn get_openclaw_cwd() -> PathBuf {
     
     // 生产模式
     exe_dir.join("openclaw")
+}
+
+/// 获取 OpenClaw 数据目录（独立于本地 OpenClaw 安装）
+/// 使用 SuperClaw 应用目录下的 data/openclaw，避免与 ~/.openclaw 冲突
+fn get_openclaw_data_dir() -> PathBuf {
+    let exe_dir = std::env::current_exe()
+        .expect("Failed to get current exe path")
+        .parent()
+        .expect("Failed to get parent directory")
+        .to_path_buf();
+
+    // 开发模式：数据存放在项目根目录
+    let dev_data = exe_dir.join("..").join("data").join("openclaw");
+    if exe_dir.join("..").join("openclaw-dist").exists() {
+        return dev_data;
+    }
+
+    // 生产模式：数据存放在 exe 同级的 data/openclaw 目录
+    exe_dir.join("data").join("openclaw")
 }
 
 /// 启动 OpenClaw Gateway
@@ -106,17 +126,26 @@ pub async fn start_gateway() -> Result<String, String> {
     let entry_path = get_openclaw_entry();
     let cwd = get_openclaw_cwd();
     
+    let data_dir = get_openclaw_data_dir();
+    
     println!("[SuperClaw] Starting OpenClaw Gateway...");
     println!("[SuperClaw] Node path: {:?}", node_path);
     println!("[SuperClaw] Entry path: {:?}", entry_path);
     println!("[SuperClaw] Working directory: {:?}", cwd);
+    println!("[SuperClaw] Data directory: {:?}", data_dir);
     
+    // 确保数据目录存在
+    std::fs::create_dir_all(&data_dir)
+        .map_err(|e| format!("Failed to create data directory: {}", e))?;
+
     let child = Command::new(&node_path)
         .arg(&entry_path)
         .arg("gateway")
         .arg("start")
         .arg("--port")
         .arg("22333")
+        .arg("--data-dir")
+        .arg(data_dir.to_str().ok_or("Invalid data directory path")?)
         .current_dir(&cwd)
         .spawn()
         .map_err(|e| format!("Failed to start gateway: {} (node: {:?})", e, node_path))?;
