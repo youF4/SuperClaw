@@ -1,10 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import gatewayApi from '@/lib/gateway'
-import { useGatewayStore } from '@/stores/gateway'
+import gatewayApi, { type GatewayResponse } from '@/lib/gateway'
 import { notify } from '@/composables/useNotification'
-
-const gatewayStore = useGatewayStore()
+import { useGatewayData, useGatewayPage } from '@/composables/useGatewayData'
 
 interface Device {
   id: string
@@ -14,84 +11,32 @@ interface Device {
   lastSeen?: number
 }
 
-const devices = ref<Device[]>([])
-const loading = ref(false)
+const { gatewayStore } = useGatewayPage()
+const { data: devices, loading, load: loadDevices } = useGatewayData<Device[]>(
+  () => gatewayApi.device.pair.list() as Promise<GatewayResponse<Device[]>>,
+  { immediate: false, onError: msg => notify(`获取设备列表失败: ${msg}`, 'error') }
+)
 
-onMounted(async () => {
-  await gatewayStore.checkStatus()
-  if (gatewayStore.running) {
-    await loadDevices()
-  }
-})
+/** 确认对话框（模板中无法直接访问 window.confirm） */
+function confirmAction(msg: string): boolean { return window.confirm(msg) }
 
-async function loadDevices() {
-  loading.value = true
-  const res = await gatewayApi.device.pair.list()
-  if (res.ok && res.result) {
-    devices.value = res.result as Device[]
-  } else {
-    notify(`获取设备列表失败: ${res.error || '未知错误'}`, 'error')
-  }
-  loading.value = false
-}
-
-async function approveDevice(deviceId: string) {
-  const res = await gatewayApi.device.pair.approve(deviceId)
+/** 执行设备操作：调用 API → 通知 → 刷新列表 */
+async function deviceAction(
+  label: string,
+  action: () => Promise<{ ok: boolean; error?: string }>,
+  reload = true
+) {
+  const res = await action()
   if (res.ok) {
-    notify('设备已批准', 'success')
-    await loadDevices()
+    notify(`${label}成功`, 'success')
+    if (reload) await loadDevices()
   } else {
-    notify(`批准失败: ${res.error || '未知错误'}`, 'error')
-  }
-}
-
-async function rejectDevice(deviceId: string) {
-  const res = await gatewayApi.device.pair.reject(deviceId)
-  if (res.ok) {
-    notify('设备已拒绝', 'info')
-    await loadDevices()
-  } else {
-    notify(`拒绝失败: ${res.error || '未知错误'}`, 'error')
-  }
-}
-
-async function removeDevice(deviceId: string) {
-  if (!confirm('确定要移除此设备吗？')) return
-  const res = await gatewayApi.device.pair.remove(deviceId)
-  if (res.ok) {
-    notify('设备已移除', 'info')
-    await loadDevices()
-  } else {
-    notify(`移除失败: ${res.error || '未知错误'}`, 'error')
-  }
-}
-
-async function rotateToken(deviceId: string) {
-  const res = await gatewayApi.device.token.rotate(deviceId)
-  if (res.ok) {
-    notify('令牌已轮换', 'success')
-  } else {
-    notify(`轮换令牌失败: ${res.error || '未知错误'}`, 'error')
-  }
-}
-
-async function revokeToken(deviceId: string) {
-  if (!confirm('确定要撤销此设备的令牌吗？此操作不可撤销！')) return
-  const res = await gatewayApi.device.token.revoke(deviceId)
-  if (res.ok) {
-    notify('令牌已撤销', 'info')
-  } else {
-    notify(`撤销令牌失败: ${res.error || '未知错误'}`, 'error')
+    notify(`${label}失败: ${res.error || '未知错误'}`, 'error')
   }
 }
 
 function formatTime(ts?: number): string {
-  if (!ts) return '-'
-  return new Date(ts).toLocaleString('zh-CN')
-}
-
-function statusLabel(s: string): string {
-  return { pending: '待审批', approved: '已批准', rejected: '已拒绝' }[s] || s
+  return ts ? new Date(ts).toLocaleString('zh-CN') : '-'
 }
 </script>
 
@@ -114,7 +59,7 @@ function statusLabel(s: string): string {
 
       <div v-if="loading" class="loading">加载中...</div>
 
-      <div v-else-if="devices.length === 0" class="empty">
+      <div v-else-if="!devices || devices.length === 0" class="empty">
         <p>暂无配对设备</p>
       </div>
 
@@ -124,7 +69,7 @@ function statusLabel(s: string): string {
             <div class="device-header">
               <h3>{{ device.name || '未命名设备' }}</h3>
               <span class="status-badge" :class="device.status">
-                {{ statusLabel(device.status) }}
+                {{ { pending: '待审批', approved: '已批准', rejected: '已拒绝' }[device.status] || device.status }}
               </span>
             </div>
             <div class="device-meta">
@@ -144,14 +89,14 @@ function statusLabel(s: string): string {
           </div>
           <div class="device-actions">
             <template v-if="device.status === 'pending'">
-              <button @click="approveDevice(device.id)" class="btn-approve">批准</button>
-              <button @click="rejectDevice(device.id)" class="btn-reject">拒绝</button>
+              <button @click="deviceAction('批准', () => gatewayApi.device.pair.approve(device.id))" class="btn-approve">批准</button>
+              <button @click="deviceAction('拒绝', () => gatewayApi.device.pair.reject(device.id))" class="btn-reject">拒绝</button>
             </template>
             <template v-if="device.status === 'approved'">
-              <button @click="removeDevice(device.id)" class="btn-remove">移除</button>
+              <button @click="confirmAction('确定要移除此设备吗？') && deviceAction('移除', () => gatewayApi.device.pair.remove(device.id))" class="btn-remove">移除</button>
               <div class="token-actions">
-                <button @click="rotateToken(device.id)" class="btn-outline">轮换令牌</button>
-                <button @click="revokeToken(device.id)" class="btn-danger-outline">撤销令牌</button>
+                <button @click="deviceAction('轮换令牌', () => gatewayApi.device.token.rotate(device.id), false)" class="btn-outline">轮换令牌</button>
+                <button @click="confirmAction('确定要撤销此设备的令牌吗？此操作不可撤销！') && deviceAction('撤销令牌', () => gatewayApi.device.token.revoke(device.id), false)" class="btn-danger-outline">撤销令牌</button>
               </div>
             </template>
           </div>

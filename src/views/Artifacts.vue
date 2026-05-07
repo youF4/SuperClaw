@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
-import gatewayApi from '@/lib/gateway'
-import { useGatewayStore } from '@/stores/gateway'
+import { ref, watch } from 'vue'
+import gatewayApi, { type GatewayResponse } from '@/lib/gateway'
 import { notify } from '@/composables/useNotification'
-
-const gatewayStore = useGatewayStore()
+import { useGatewayData, useGatewayPage } from '@/composables/useGatewayData'
 
 interface Session {
   key: string
@@ -34,29 +32,16 @@ interface ArtifactDetail {
   data?: string
 }
 
-const sessions = ref<Session[]>([])
+const { gatewayStore } = useGatewayPage()
 const selectedSession = ref<string | null>(null)
+const { data: sessions } = useGatewayData<Session[]>(
+  () => gatewayApi.sessions.list() as Promise<GatewayResponse<Session[]>>,
+  { immediate: true }
+)
 const artifacts = ref<Artifact[]>([])
 const selectedArtifact = ref<ArtifactDetail | null>(null)
 const loading = ref(false)
 const detailLoading = ref(false)
-const loadingSessions = ref(false)
-
-onMounted(async () => {
-  await gatewayStore.checkStatus()
-  if (gatewayStore.running) {
-    await loadSessions()
-  }
-})
-
-async function loadSessions() {
-  loadingSessions.value = true
-  const res = await gatewayApi.sessions.list()
-  if (res.ok && res.result) {
-    sessions.value = res.result as Session[]
-  }
-  loadingSessions.value = false
-}
 
 async function loadArtifacts() {
   if (!selectedSession.value) return
@@ -83,36 +68,32 @@ async function selectArtifact(artifactId: string) {
 }
 
 /** 校验 URL 是否安全，防止 XSS */
+const ALLOWED_PROTOCOLS = ['https:', 'http:', 'data:', 'blob:'] as const
 function isSafeUrl(url: string): boolean {
-  const allowedProtocols = ['https:', 'http:', 'data:', 'blob:']
-  try {
-    const parsed = new URL(url)
-    return allowedProtocols.includes(parsed.protocol)
-  } catch {
-    return false
-  }
+  try { return ALLOWED_PROTOCOLS.includes(new URL(url).protocol as typeof ALLOWED_PROTOCOLS[number]) }
+  catch { return false }
 }
 
 async function downloadArtifact(artifactId: string) {
   const res = await gatewayApi.artifacts.download(artifactId)
-  if (res.ok && res.result) {
-    const data = res.result as { data?: string; url?: string; filename?: string }
-    if (data.url && isSafeUrl(data.url)) {
-      window.open(data.url, '_blank', 'noopener,noreferrer')
-    } else if (data.data && isSafeUrl(data.data)) {
-      const link = document.createElement('a')
-      link.rel = 'noopener noreferrer'
-      link.href = data.data
-      link.download = data.filename || `artifact-${artifactId}`
-      link.click()
-    } else {
-      notify('下载地址不合法，已阻止', 'error')
-      return
-    }
-    notify('工件下载已触发', 'success')
-  } else {
+  if (!res.ok || !res.result) {
     notify(`下载失败: ${res.error || '未知错误'}`, 'error')
+    return
   }
+  const data = res.result as { data?: string; url?: string; filename?: string }
+  if (data.url && isSafeUrl(data.url)) {
+    window.open(data.url, '_blank', 'noopener,noreferrer')
+  } else if (data.data && isSafeUrl(data.data)) {
+    const link = document.createElement('a')
+    link.rel = 'noopener noreferrer'
+    link.href = data.data
+    link.download = data.filename || `artifact-${artifactId}`
+    link.click()
+  } else {
+    notify('下载地址不合法，已阻止', 'error')
+    return
+  }
+  notify('工件下载已触发', 'success')
 }
 
 watch(selectedSession, () => {
@@ -158,7 +139,7 @@ function typeLabel(type: string): string {
       <!-- 会话选择 -->
       <div class="session-selector">
         <label>选择会话：</label>
-        <select v-model="selectedSession" :disabled="loadingSessions">
+        <select v-model="selectedSession" :disabled="sessions === null">
           <option value="" disabled>-- 请选择会话 --</option>
           <option v-for="s in sessions" :key="s.key" :value="s.key">
             {{ s.name || s.key.slice(0, 20) + '...' }}
