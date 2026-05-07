@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import gatewayApi from '@/lib/gateway'
 import { useGatewayStore } from '@/stores/gateway'
 import { notify } from '@/composables/useNotification'
@@ -123,6 +123,13 @@ function formatTime(ts?: number): string {
 function statusLabel(s: string): string {
   return { connected: '在线', disconnected: '离线', pending: '待审批', online: '在线', offline: '离线' }[s] || s
 }
+
+// 全局 ESC 关闭重命名对话框
+function onKeyDown(e: KeyboardEvent) {
+  if (e.key === 'Escape') renaming.value = null
+}
+onMounted(() => document.addEventListener('keydown', onKeyDown))
+onUnmounted(() => document.removeEventListener('keydown', onKeyDown))
 </script>
 
 <template>
@@ -192,7 +199,7 @@ function statusLabel(s: string): string {
           </div>
 
           <!-- 重命名对话框 -->
-          <div v-if="renaming" class="rename-dialog">
+          <div v-if="renaming" class="rename-dialog" role="dialog" aria-modal="true" aria-label="重命名节点">
             <div class="rename-box">
               <h4>重命名节点</h4>
               <input v-model="renaming.name" type="text" placeholder="输入新名称" @keyup.enter="renameNode(renaming.id)" />

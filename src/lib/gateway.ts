@@ -327,6 +327,10 @@ export const gatewayApi = {
   // ========================================
   secrets: {
     reload: () => callGateway('secrets.reload'),
+    /** 获取密钥列表（无 commandId 时返回所有密钥） */
+    list: (commandId?: string) =>
+      callGateway('secrets.resolve', { commandId }),
+    /** @deprecated 请使用 secrets.list() */
     resolve: (commandId?: string) =>
       callGateway('secrets.resolve', { commandId }),
   },

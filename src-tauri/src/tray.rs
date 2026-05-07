@@ -16,12 +16,19 @@ pub fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
     // TODO: 动态更新菜单项状态（禁用"启动"当 Gateway 运行中，禁用"停止"当未运行）
     // 当前 Tauri 2.0 需要保存 Menu 句柄来动态修改菜单项
-    let _tray = TrayIconBuilder::new()
-        .icon(app.default_window_icon().unwrap().clone())
-        .menu(&menu)
+    let mut tray = TrayIconBuilder::new();
+    if let Some(icon) = app.default_window_icon() {
+        tray = tray.icon(icon.clone());
+    }
+    let _tray = tray.menu(&menu)
         .show_menu_on_left_click(true)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "quit" => {
+                // 退出前停止 Gateway 子进程，防止孤儿进程占用端口
+                println!("[SuperClaw] Exiting application, stopping Gateway...");
+                if let Ok(handle) = tokio::runtime::Handle::try_current() {
+                    let _ = handle.block_on(gateway::stop_gateway());
+                }
                 app.exit(0);
             }
             "show" => {

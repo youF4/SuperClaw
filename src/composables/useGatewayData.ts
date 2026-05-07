@@ -32,7 +32,7 @@ export function useGatewayData<T>(
   async function load(): Promise<T | null> {
     loading.value = true
     error.value = null
-    data.value = null
+    // 不立清 data，保留旧数据直到新数据到达，避免 UI 闪烁
 
     const res = await fetcher()
     if (res.ok && res.result !== undefined) {

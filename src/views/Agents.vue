@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useAgentStore } from '@/stores/agent'
 import { useGatewayStore } from '@/stores/gateway'
 import { notify } from '@/composables/useNotification'
@@ -83,6 +83,16 @@ function resetForm() {
 function formatTime(timestamp: number): string {
   return new Date(timestamp).toLocaleString('zh-CN')
 }
+
+// 全局 ESC 关闭对话框
+function onKeyDown(e: KeyboardEvent) {
+  if (e.key === 'Escape') {
+    showAddDialog.value = false
+    showEditDialog.value = false
+  }
+}
+onMounted(() => document.addEventListener('keydown', onKeyDown))
+onUnmounted(() => document.removeEventListener('keydown', onKeyDown))
 </script>
 
 <template>
@@ -148,7 +158,7 @@ function formatTime(timestamp: number): string {
     </div>
 
     <!-- 创建 Agent 对话框 -->
-    <div v-if="showAddDialog" class="dialog-overlay" @click.self="showAddDialog = false">
+    <div v-if="showAddDialog" class="dialog-overlay" role="dialog" aria-modal="true" aria-label="新建智能体" @click.self="showAddDialog = false">
       <div class="dialog">
         <h3>新建智能体</h3>
 
@@ -180,7 +190,7 @@ function formatTime(timestamp: number): string {
     </div>
 
     <!-- 编辑 Agent 对话框 -->
-    <div v-if="showEditDialog" class="dialog-overlay" @click.self="showEditDialog = false">
+    <div v-if="showEditDialog" class="dialog-overlay" role="dialog" aria-modal="true" aria-label="编辑智能体" @click.self="showEditDialog = false">
       <div class="dialog">
         <h3>编辑智能体</h3>
 

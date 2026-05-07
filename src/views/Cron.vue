@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useCronStore } from '@/stores/cron'
 import { useGatewayStore } from '@/stores/gateway'
 import { notify } from '@/composables/useNotification'
@@ -53,6 +53,13 @@ function formatTime(timestamp?: number): string {
   if (!timestamp) return '-'
   return new Date(timestamp).toLocaleString('zh-CN')
 }
+
+// 全局 ESC 关闭对话框
+function onKeyDown(e: KeyboardEvent) {
+  if (e.key === 'Escape') showAddDialog.value = false
+}
+onMounted(() => document.addEventListener('keydown', onKeyDown))
+onUnmounted(() => document.removeEventListener('keydown', onKeyDown))
 
 // Cron 表达式示例
 const cronExamples = [
@@ -130,7 +137,7 @@ const cronExamples = [
     </div>
 
     <!-- 添加任务对话框 -->
-    <div v-if="showAddDialog" class="dialog-overlay" @click.self="showAddDialog = false">
+    <div v-if="showAddDialog" class="dialog-overlay" role="dialog" aria-modal="true" aria-label="新建定时任务" @click.self="showAddDialog = false">
       <div class="dialog">
         <h3>新建定时任务</h3>
 

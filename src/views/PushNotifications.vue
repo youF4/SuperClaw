@@ -14,6 +14,9 @@ const vapidKey = ref<VapidKey | null>(null)
 const subscribed = ref(false)
 const loading = ref(false)
 
+/** 检测是否运行在 Tauri 环境（无 Service Worker 支持） */
+const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
+
 onMounted(async () => {
   await gatewayStore.checkStatus()
   if (gatewayStore.running) await loadVapidKey()
@@ -28,6 +31,10 @@ async function loadVapidKey() {
 }
 
 async function subscribePush() {
+  if (isTauri) {
+    notify('Tauri 桌面端不支持浏览器推送通知', 'error')
+    return
+  }
   if (!('Notification' in window)) {
     notify('此浏览器不支持推送通知', 'error')
     return
@@ -96,13 +103,16 @@ async function unsubscribePush() {
         <h3>浏览器推送</h3>
         <div class="info-card">
           <p class="desc">订阅后可在浏览器后台接收 Gateway 事件通知。</p>
+          <div v-if="isTauri" class="tauri-notice">
+            ⚠️ Tauri 桌面端暂不支持浏览器推送功能，此页面仅适用于 Web 版。
+          </div>
           <div class="sub-status">
             <span class="badge" :class="subscribed ? 'subscribed' : 'unsubscribed'">
               {{ subscribed ? '已订阅' : '未订阅' }}
             </span>
           </div>
           <div class="actions">
-            <button v-if="!subscribed" @click="subscribePush" class="action-btn primary">
+            <button v-if="!subscribed && !isTauri" @click="subscribePush" class="action-btn primary">
               订阅推送
             </button>
             <button v-if="subscribed" @click="unsubscribePush" class="action-btn danger">
@@ -151,4 +161,5 @@ async function unsubscribePush() {
 .action-btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
 .action-btn.primary { background: #4a4a8e; color: #fff; }
 .action-btn.danger { background: #ef4444; color: #fff; }
+.tauri-notice { background: #2a2a4e; padding: 12px 16px; border-radius: 8px; color: #fbbf24; font-size: 13px; margin-bottom: 16px; }
 </style>

@@ -32,6 +32,26 @@ export const useChatStore = defineStore('chat', () => {
     loading.value = false
   }
 
+  /** 标准化消息对象：兼容 API 返回纯文本或 Message 对象两种格式 */
+  function normalizeMessage(raw: unknown): Message {
+    if (typeof raw === 'string') {
+      return {
+        id: `assistant-${Date.now()}`,
+        role: 'assistant',
+        content: raw,
+        createdAt: Date.now(),
+      }
+    }
+    const obj = raw as Record<string, unknown>
+    return {
+      id: (obj.id as string) || `assistant-${Date.now()}`,
+      role: (obj.role as Message['role']) || 'assistant',
+      content: (obj.content as string) || JSON.stringify(obj),
+      createdAt: (obj.createdAt as number) || Date.now(),
+      attachments: obj.attachments as Message['attachments'] | undefined,
+    }
+  }
+
   async function sendMessage(sessionKey: string, text: string) {
     // 添加用户消息
     const userMessage: Message = {
@@ -47,13 +67,7 @@ export const useChatStore = defineStore('chat', () => {
     try {
       const response = await gatewayApi.chat.send(sessionKey, text)
       if (response.ok && response.result) {
-        // 添加助手回复
-        const assistantMessage: Message = {
-          id: `assistant-${Date.now()}`,
-          role: 'assistant',
-          content: response.result as string,
-          createdAt: Date.now(),
-        }
+        const assistantMessage = normalizeMessage(response.result)
         messages.value.push(assistantMessage)
       } else {
         notify(`发送消息失败: ${response.error || '未知错误'}`, 'error')
@@ -75,9 +89,9 @@ export const useChatStore = defineStore('chat', () => {
 
   function addRealtimeMessage(msg: unknown) {
     // 去重：避免 WebSocket 和 HTTP 响应同时添加同一条消息
-    const msgWithId = msg as { id?: string }
-    if (msgWithId?.id && messages.value.some((m) => m.id === msgWithId.id)) return
-    messages.value.push(msg as Message)
+    const msgObj = msg as Record<string, unknown>
+    if (msgObj?.id && messages.value.some((m) => m.id === msgObj.id)) return
+    messages.value.push(normalizeMessage(msg))
   }
 
   function clear() {

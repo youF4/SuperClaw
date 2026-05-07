@@ -22,36 +22,42 @@ export function useRealtimeChat() {
   const chatStore = useChatStore()
   const sessionStore = useSessionStore()
 
+  let unsubMessage: (() => void) | null = null
+  let unsubSessions: (() => void) | null = null
+
+  function setupEventHandlers() {
+    unsubMessage?.()
+    unsubSessions?.()
+    unsubMessage = gatewayWs.on('session.message', (event: GatewayEvent) => {
+      const payload = event.data as { sessionKey?: string; message?: unknown }
+      if (payload?.sessionKey === sessionStore.currentSessionKey && payload?.message) {
+        chatStore.addRealtimeMessage(payload.message)
+      }
+    })
+    unsubSessions = gatewayWs.on('sessions.changed', () => {
+      sessionStore.fetchSessions()
+    })
+  }
+
+  function cleanupEventHandlers() {
+    unsubMessage?.()
+    unsubSessions?.()
+    unsubMessage = null
+    unsubSessions = null
+  }
+
   /** 连接 WebSocket */
   async function connectWs() {
     if (gatewayWs.connectionState === 'connected') return
     try {
       await gatewayWs.connect()
       setupEventHandlers()
-
-      // 如果已有会话，立即订阅
       if (sessionStore.currentSessionKey) {
         gatewayWs.subscribeSession(sessionStore.currentSessionKey)
       }
     } catch (error) {
       console.warn('[Realtime] WebSocket 连接失败，使用 HTTP 轮询:', error)
     }
-  }
-
-  /** 注册事件处理器 */
-  function setupEventHandlers() {
-    // 新消息事件
-    gatewayWs.on('session.message', (event: GatewayEvent) => {
-      const payload = event.data as { sessionKey?: string; message?: unknown }
-      if (payload?.sessionKey === sessionStore.currentSessionKey && payload?.message) {
-        chatStore.addRealtimeMessage(payload.message)
-      }
-    })
-
-    // 会话变更（新建/删除），刷新列表
-    gatewayWs.on('sessions.changed', () => {
-      sessionStore.fetchSessions()
-    })
   }
 
   /** 监听会话切换，自动重新订阅 */
@@ -71,10 +77,11 @@ export function useRealtimeChat() {
       if (running) {
         await connectWs()
       } else {
+        cleanupEventHandlers()
         gatewayWs.disconnect()
       }
     }
   )
 
-  return { connectWs }
+  return { connectWs, cleanupEventHandlers }
 }

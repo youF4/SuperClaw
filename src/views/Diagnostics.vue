@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import gatewayApi from '@/lib/gateway'
 import { useGatewayStore } from '@/stores/gateway'
+import { formatSize } from '@/lib/utils'
 
 const gatewayStore = useGatewayStore()
 
@@ -73,14 +74,6 @@ function formatUptime(seconds: number): string {
   return `${d}天 ${h}小时 ${m}分钟`
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
-}
-
 function statusLabel(s: string): string {
   return { healthy: '健康', degraded: '降级', unhealthy: '异常', online: '在线', offline: '离线' }[s] || s
 }
@@ -119,7 +112,7 @@ function statusLabel(s: string): string {
               <div class="stat-label">运行时间</div>
             </div>
             <div class="stat-card">
-              <div class="stat-value">{{ formatBytes(stability.memoryUsage) }}</div>
+              <div class="stat-value">{{ formatSize(stability.memoryUsage) }}</div>
               <div class="stat-label">内存使用</div>
             </div>
             <div class="stat-card">

@@ -25,7 +25,7 @@ onMounted(async () => {
 
 async function loadSecrets() {
   loading.value = true
-  const res = await gatewayApi.secrets.resolve()
+  const res = await gatewayApi.secrets.list()
   if (res.ok && res.result) {
     const data = res.result as { secrets?: Secret[] }
     secrets.value = data.secrets || []

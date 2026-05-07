@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod gateway;
+mod log;
 mod tray;
 
 #[tauri::command]
@@ -27,39 +28,32 @@ fn get_file_metadata(path: String) -> Result<u64, String> {
 }
 
 fn main() {
-    // 初始化日志
-    println!("[SuperClaw] Starting application...");
-    
-    // 检查 WebView2
-    #[cfg(target_os = "windows")]
-    {
-        println!("[SuperClaw] Checking WebView2...");
-    }
+    log::init();
+    log::info("Starting application...");
     
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        // 未配置 Tauri 更新机制，暂不启用 updater 插件
+        // .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_os::init())
         .setup(|app| {
-            println!("[SuperClaw] Setup phase...");
-            
-            // 设置系统托盘
-            tray::setup_tray(app)?;
-            
-            // 自动启动 Gateway
-            println!("[SuperClaw] Auto-starting Gateway...");
+            log::info("Setup phase...");
+            tray::setup_tray(app).map_err(|e| {
+                log::error(&format!("Tray setup failed: {}", e));
+                e
+            })?;
+            log::info("Auto-starting Gateway...");
             tauri::async_runtime::spawn(async move {
-                // 直接调用 gateway 模块的函数，而不是 Tauri command
                 match gateway::start_gateway().await {
-                    Ok(msg) => println!("[SuperClaw] Gateway started: {}", msg),
-                    Err(e) => eprintln!("[SuperClaw] Failed to start gateway: {}", e),
+                    Ok(msg) => log::info(&format!("Gateway started: {}", msg)),
+                    Err(e) => log::error(&format!("Failed to start gateway: {}", e)),
                 }
             });
-            
+            log::info("Setup complete");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

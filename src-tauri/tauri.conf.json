@@ -44,17 +44,17 @@
                     "resources":  {
                                       "../openclaw-dist":  "openclaw/"
                                   },
-                    "windows":  {
-                                    "nsis":  {
-                                                "installerIcon":  "icons/icon.ico",
-                                                "installMode":  "perMachine",
-                                                "languages":  [
-                                                                  "SimpChinese"
-                                                              ]
-                                            },
-"webviewInstallMode":  {
-                                                               "type":  "downloadBootstrapper"
-                                                           }
-                               }
+                      "windows":  {
+                                      "nsis":  {
+                                                  "installerIcon":  "icons/icon.ico",
+                                                  "installMode":  "perMachine",
+                                                  "languages":  [
+                                                                    "SimpChinese"
+                                                                ]
+                                              },
+                                      "webviewInstallMode":  {
+                                                                  "type":  "downloadBootstrapper"
+                                                              }
+                                 }
                }
 }

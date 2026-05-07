@@ -10,80 +10,90 @@ static GATEWAY_PROCESS: Mutex<Option<Child>> = Mutex::new(None);
 static GATEWAY_RUNNING: AtomicBool = AtomicBool::new(false);
 static GATEWAY_PID: AtomicU32 = AtomicU32::new(0);
 
-/// 获取 Node.js 可执行文件路径
-fn get_node_path() -> PathBuf {
-    // 获取应用目录
+/// 获取 OpenClaw 运行时所在的目录
+///
+/// 开发模式：exe 在 src-tauri/target/debug/ 或 target/release/ 中，
+/// openclaw-dist/ 在项目根目录。回退向上查找 2~3 级。
+/// 生产模式：tauri.conf.json 将 ../openclaw-dist 映射为 bundle 中的 openclaw/。
+fn get_openclaw_base_dir() -> PathBuf {
     let exe_dir = std::env::current_exe()
         .expect("Failed to get current exe path")
         .parent()
         .expect("Failed to get parent directory")
         .to_path_buf();
-    
-    // 开发模式：检查 openclaw-dist 目录
-    let dev_path = exe_dir.join("..").join("openclaw-dist").join("node.exe");
-    if dev_path.exists() {
-        return dev_path;
+
+    // 开发模式：向上查找项目根目录的 openclaw-dist/
+    // exe 层次: WORKSPACE/src-tauri/target/debug/SuperClaw.exe
+    let dev_candidates = [
+        // target/debug/ → workspace/
+        exe_dir.join("..").join("..").join("..").join("openclaw-dist"),
+        // target/release/ → workspace/
+        exe_dir.join("..").join("..").join("openclaw-dist"),
+        // 某些调试场景
+        exe_dir.join("..").join("openclaw-dist"),
+        // 当前目录
+        exe_dir.join("openclaw-dist"),
+    ];
+    let check_dev = |p: &PathBuf| p.join("node.exe").exists() || p.join("openclaw.mjs").exists();
+    for candidate in &dev_candidates {
+        if check_dev(candidate) {
+            return candidate.clone();
+        }
     }
-    
-    // 生产模式：使用应用目录内的 node
-    exe_dir.join("openclaw").join("node.exe")
+
+    // 生产模式：资源在 exe 同级 openclaw/ 目录下
+    exe_dir.join("openclaw")
+}
+
+/// 获取 Node.js 可执行文件路径
+fn get_node_path() -> PathBuf {
+    get_openclaw_base_dir().join("node.exe")
 }
 
 /// 获取 OpenClaw 入口文件路径
 fn get_openclaw_entry() -> PathBuf {
-    // 获取应用目录
-    let exe_dir = std::env::current_exe()
-        .expect("Failed to get current exe path")
-        .parent()
-        .expect("Failed to get parent directory")
-        .to_path_buf();
-    
-    // 开发模式：检查 openclaw-dist 目录
-    let dev_path = exe_dir.join("..").join("openclaw-dist").join("openclaw.mjs");
-    if dev_path.exists() {
-        return dev_path;
-    }
-    
-    // 生产模式：使用应用目录内的 openclaw.mjs
-    exe_dir.join("openclaw").join("openclaw.mjs")
+    get_openclaw_base_dir().join("openclaw.mjs")
 }
 
 /// 获取 OpenClaw 工作目录
 fn get_openclaw_cwd() -> PathBuf {
-    // 获取应用目录
-    let exe_dir = std::env::current_exe()
-        .expect("Failed to get current exe path")
-        .parent()
-        .expect("Failed to get parent directory")
-        .to_path_buf();
-    
-    // 开发模式
-    let dev_cwd = exe_dir.join("..").join("openclaw-dist");
-    if dev_cwd.exists() {
-        return dev_cwd;
-    }
-    
-    // 生产模式
-    exe_dir.join("openclaw")
+    get_openclaw_base_dir()
 }
 
 /// 获取 OpenClaw 数据目录（独立于本地 OpenClaw 安装）
-/// 使用 SuperClaw 应用目录下的 data/openclaw，避免与 ~/.openclaw 冲突
+///
+/// 开发模式：项目根目录 data/openclaw/
+/// 生产模式：%APPDATA%/SuperClaw/data/openclaw/（避免写入 Program Files）
 fn get_openclaw_data_dir() -> PathBuf {
+    // 开发模式检测：如果 openclaw-dist 在项目根目录旁，使用本地 data/
     let exe_dir = std::env::current_exe()
         .expect("Failed to get current exe path")
         .parent()
         .expect("Failed to get parent directory")
         .to_path_buf();
-
-    // 开发模式：数据存放在项目根目录
-    let dev_data = exe_dir.join("..").join("data").join("openclaw");
-    if exe_dir.join("..").join("openclaw-dist").exists() {
-        return dev_data;
+    let dev_candidates = [
+        exe_dir.join("..").join("..").join("..").join("openclaw-dist"),
+        exe_dir.join("..").join("..").join("openclaw-dist"),
+        exe_dir.join("..").join("openclaw-dist"),
+        exe_dir.join("openclaw-dist"),
+    ];
+    let check_dev = |p: &PathBuf| p.join("node.exe").exists() || p.join("openclaw.mjs").exists();
+    for candidate in &dev_candidates {
+        if check_dev(candidate) {
+            // 开发模式：数据存放在项目根目录的 data/openclaw
+            let mut dev_data = candidate.clone();
+            dev_data.pop(); // 去掉 openclaw-dist
+            dev_data.push("data");
+            dev_data.push("openclaw");
+            return dev_data;
+        }
     }
 
-    // 生产模式：数据存放在 exe 同级的 data/openclaw 目录
-    exe_dir.join("data").join("openclaw")
+    // 生产模式：使用 %APPDATA%/SuperClaw/data/openclaw
+    let app_data = std::env::var("APPDATA")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| exe_dir);
+    app_data.join("SuperClaw").join("data").join("openclaw")
 }
 
 /// 启动 OpenClaw Gateway

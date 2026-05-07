@@ -1,21 +1,13 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import gatewayApi from '@/lib/gateway'
 import { useGatewayStore } from '@/stores/gateway'
+import { useProviderStore } from '@/stores/provider'
 import { notify } from '@/composables/useNotification'
 
 const gatewayStore = useGatewayStore()
+const providerStore = useProviderStore()
 
-const providers = ref([
-  { id: 'openai', name: 'OpenAI', apiKey: '', configured: false, models: ['gpt-4', 'gpt-3.5-turbo'] },
-  { id: 'anthropic', name: 'Anthropic', apiKey: '', configured: false, models: ['claude-3-opus', 'claude-3-sonnet'] },
-  { id: 'google', name: 'Google AI', apiKey: '', configured: false, models: ['gemini-pro', 'gemini-ultra'] },
-  { id: 'moonshot', name: 'Moonshot (Kimi)', apiKey: '', configured: false, models: ['moonshot-v1-8k', 'moonshot-v1-32k'] },
-  { id: 'deepseek', name: 'DeepSeek', apiKey: '', configured: false, models: ['deepseek-chat', 'deepseek-coder'] },
-  { id: 'zhipu', name: '智谱 AI', apiKey: '', configured: false, models: ['glm-4', 'glm-3-turbo'] },
-])
-
-const loading = ref(false)
 const selectedProvider = ref<string | null>(null)
 const showApiKeyDialog = ref(false)
 const editingApiKey = ref('')
@@ -23,26 +15,21 @@ const editingApiKey = ref('')
 onMounted(async () => {
   await gatewayStore.checkStatus()
   if (gatewayStore.running) {
-    await fetchAuthStatus()
+    await Promise.all([
+      providerStore.fetchProviders(),
+      providerStore.checkAuthStatus(),
+    ])
   }
 })
-
-async function fetchAuthStatus() {
-  loading.value = true
-  const response = await gatewayApi.models.authStatus()
-  if (response.ok && response.result) {
-    const status = response.result as Record<string, boolean>
-    providers.value.forEach(p => {
-      p.configured = status[p.id] || false
-    })
-  }
-  loading.value = false
-}
 
 function openApiKeyDialog(providerId: string) {
   selectedProvider.value = providerId
   editingApiKey.value = ''
   showApiKeyDialog.value = true
+}
+
+function getProviderById(id: string) {
+  return providerStore.providers.find(p => p.id === id)
 }
 
 async function saveApiKey() {
@@ -61,11 +48,8 @@ async function saveApiKey() {
   })
 
   if (response.ok) {
-    // 更新状态
-    const provider = providers.value.find(p => p.id === selectedProvider.value)
-    if (provider) {
-      provider.configured = true
-    }
+    // 重新加载状态
+    await providerStore.checkAuthStatus()
     showApiKeyDialog.value = false
     notify('API Key 保存成功！', 'success')
   } else {
@@ -74,16 +58,21 @@ async function saveApiKey() {
 }
 
 async function testConnection(providerId: string) {
-  const response = await gatewayApi.models.authStatus()
-  if (response.ok && response.result) {
-    const status = response.result as Record<string, boolean>
-    if (status[providerId]) {
-      notify('连接成功！', 'success')
-    } else {
-      notify('连接失败，请检查 API Key', 'error')
-    }
+  await providerStore.checkAuthStatus()
+  const provider = getProviderById(providerId)
+  if (provider?.configured) {
+    notify('连接成功！', 'success')
+  } else {
+    notify('连接失败，请检查 API Key', 'error')
   }
 }
+
+// 全局 ESC 关闭对话框
+function onKeyDown(e: KeyboardEvent) {
+  if (e.key === 'Escape') showApiKeyDialog.value = false
+}
+onMounted(() => document.addEventListener('keydown', onKeyDown))
+onUnmounted(() => document.removeEventListener('keydown', onKeyDown))
 </script>
 
 <template>
@@ -100,9 +89,13 @@ async function testConnection(providerId: string) {
     </div>
 
     <!-- Provider 列表 -->
-    <div class="providers-grid">
+    <div v-if="providerStore.loading" class="loading">加载中...</div>
+    <div v-else-if="providerStore.providers.length === 0" class="empty">
+      <p>暂无可用 Provider，请先启动 Gateway</p>
+    </div>
+    <div v-else class="providers-grid">
       <div
-        v-for="provider in providers"
+        v-for="provider in providerStore.providers"
         :key="provider.id"
         class="provider-card"
         :class="{ configured: provider.configured }"
@@ -148,11 +141,11 @@ async function testConnection(providerId: string) {
     </div>
 
     <!-- API Key 配置对话框 -->
-    <div v-if="showApiKeyDialog" class="dialog-overlay" @click.self="showApiKeyDialog = false">
+    <div v-if="showApiKeyDialog" class="dialog-overlay" role="dialog" aria-modal="true" aria-label="配置 API Key" @click.self="showApiKeyDialog = false">
       <div class="dialog">
         <h3>配置 API Key</h3>
         <p class="dialog-desc">
-          为 <strong>{{ providers.find(p => p.id === selectedProvider)?.name }}</strong> 配置 API Key
+          为 <strong>{{ getProviderById(selectedProvider || '')?.name }}</strong> 配置 API Key
         </p>
 
         <div class="form-group">
