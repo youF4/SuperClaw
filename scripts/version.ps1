@@ -25,9 +25,15 @@ $Tag = "v$NewVer"
 
 Write-Host "=== Bumping version: $($pkg.version) -> $NewVer ($Part) ===" -ForegroundColor Cyan
 
+# ---- UTF8 without BOM helper ----
+$utf8NoBom = New-Object System.Text.UTF8Encoding $false
+function Write-Utf8NoBom($path, $content) {
+    [System.IO.File]::WriteAllText($path, $content, $utf8NoBom)
+}
+
 # ---- 1. Update package.json ----
 $pkg.version = $NewVer
-$pkg | ConvertTo-Json -Depth 10 | Set-Content $PackageJson -Encoding UTF8
+Write-Utf8NoBom $PackageJson ($pkg | ConvertTo-Json -Depth 10)
 Write-Host "[OK] package.json" -ForegroundColor Green
 
 # ---- 2. Update Cargo.toml ----
@@ -41,13 +47,13 @@ for ($i = 0; $i -lt $cargoLines.Length; $i++) {
         break
     }
 }
-Set-Content $CargoToml $cargoLines -Encoding UTF8
+Write-Utf8NoBom $CargoToml ($cargoLines -join "`r`n")
 Write-Host "[OK] Cargo.toml" -ForegroundColor Green
 
 # ---- 3. Update tauri.conf.json ----
 $tauri = Get-Content $TauriConf -Raw | ConvertFrom-Json
 $tauri.version = $NewVer
-$tauri | ConvertTo-Json -Depth 10 | Set-Content $TauriConf -Encoding UTF8
+Write-Utf8NoBom $TauriConf ($tauri | ConvertTo-Json -Depth 10)
 Write-Host "[OK] tauri.conf.json" -ForegroundColor Green
 
 # ---- 4. Update CHANGELOG.md ----
@@ -65,13 +71,12 @@ $Entry
 
 if (Test-Path $Changelog) {
     $cl = Get-Content $Changelog -Raw
-    # Insert after the first line (# Changelog)
     $lines = $cl -split "`n", 2
     $cl = $lines[0] + $NewSection + "`n" + $lines[1]
 } else {
     $cl = "# Changelog$NewSection`n"
 }
-Set-Content $Changelog $cl -Encoding UTF8
+Write-Utf8NoBom $Changelog $cl
 Write-Host "[OK] CHANGELOG.md" -ForegroundColor Green
 
 # ---- 5. Git commit & tag ----
