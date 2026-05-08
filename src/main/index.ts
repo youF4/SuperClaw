@@ -85,7 +85,7 @@ function createTray(): void {
     { label: '检查更新', click: () => checkForUpdates() },
     { type: 'separator' },
     { label: '退出', click: () => {
-      (app as any).isQuitting = true
+      isQuitting = true
       app.quit()
     }}
   ])

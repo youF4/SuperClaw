@@ -27,3 +27,7 @@ openclaw-dist/node_modules/
 
 # Runtime data (created by app at runtime)
 data/
+
+# OMO/Agent working directories
+.sisyphus/
+run-continuation/
