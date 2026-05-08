@@ -5,6 +5,7 @@
  */
 
 import type { CachedMessage, CachedSession } from '../../main/store'
+import { callIPC } from './ipc'
 
 /**
  * 缓存工具
@@ -14,91 +15,130 @@ export const cache = {
    * 获取会话列表
    */
   async getSessions(): Promise<CachedSession[]> {
-    return await window.electronAPI.cache.getSessions()
+    return await callIPC(
+      window.electronAPI.cache.getSessions(),
+      { timeout: 5000 }
+    )
   },
 
   /**
    * 保存会话
    */
   async saveSession(session: CachedSession): Promise<void> {
-    await window.electronAPI.cache.saveSession(session)
+    await callIPC(
+      window.electronAPI.cache.saveSession(session),
+      { timeout: 3000 }
+    )
   },
 
   /**
    * 删除会话
    */
   async deleteSession(sessionKey: string): Promise<void> {
-    await window.electronAPI.cache.deleteSession(sessionKey)
+    await callIPC(
+      window.electronAPI.cache.deleteSession(sessionKey),
+      { timeout: 3000 }
+    )
   },
 
   /**
    * 获取消息历史
    */
   async getMessages(sessionKey: string): Promise<CachedMessage[]> {
-    return await window.electronAPI.cache.getMessages(sessionKey)
+    return await callIPC(
+      window.electronAPI.cache.getMessages(sessionKey),
+      { timeout: 5000 }
+    )
   },
 
   /**
    * 保存消息历史
    */
   async saveMessages(sessionKey: string, messages: CachedMessage[]): Promise<void> {
-    await window.electronAPI.cache.saveMessages(sessionKey, messages)
+    await callIPC(
+      window.electronAPI.cache.saveMessages(sessionKey, messages),
+      { timeout: 5000 }
+    )
   },
 
   /**
    * 追加消息
    */
   async appendMessage(sessionKey: string, message: CachedMessage): Promise<void> {
-    await window.electronAPI.cache.appendMessage(sessionKey, message)
+    await callIPC(
+      window.electronAPI.cache.appendMessage(sessionKey, message),
+      { timeout: 3000 }
+    )
   },
 
   /**
    * 获取最后同步时间
    */
   async getLastSync(sessionKey: string): Promise<number> {
-    return await window.electronAPI.cache.getLastSync(sessionKey)
+    return await callIPC(
+      window.electronAPI.cache.getLastSync(sessionKey),
+      { timeout: 3000 }
+    )
   },
 
   /**
    * 更新最后同步时间
    */
   async updateLastSync(sessionKey: string): Promise<void> {
-    await window.electronAPI.cache.updateLastSync(sessionKey)
+    await callIPC(
+      window.electronAPI.cache.updateLastSync(sessionKey),
+      { timeout: 3000 }
+    )
   },
 
   /**
    * 获取当前会话
    */
   async getCurrentSession(): Promise<string | null> {
-    return await window.electronAPI.cache.getCurrentSession()
+    return await callIPC(
+      window.electronAPI.cache.getCurrentSession(),
+      { timeout: 3000 }
+    )
   },
 
   /**
    * 设置当前会话
    */
   async setCurrentSession(sessionKey: string | null): Promise<void> {
-    await window.electronAPI.cache.setCurrentSession(sessionKey)
+    await callIPC(
+      window.electronAPI.cache.setCurrentSession(sessionKey),
+      { timeout: 3000 }
+    )
   },
 
   /**
    * 清空缓存
    */
   async clear(): Promise<void> {
-    await window.electronAPI.cache.clear()
+    await callIPC(
+      window.electronAPI.cache.clear(),
+      { timeout: 5000 }
+    )
   },
 
   /**
    * 获取缓存大小（字节）
    */
   async getSize(): Promise<number> {
-    return await window.electronAPI.cache.getSize()
+    return await callIPC(
+      window.electronAPI.cache.getSize(),
+      { timeout: 3000 }
+    )
   },
 
   /**
    * 清理旧缓存
    */
   async cleanOld(keepCount: number = 10): Promise<void> {
-    await window.electronAPI.cache.cleanOld(keepCount)
+    await callIPC(
+      window.electronAPI.cache.cleanOld(keepCount),
+      { timeout: 5000 }
+    )
   }
 }
 

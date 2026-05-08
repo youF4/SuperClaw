@@ -4,7 +4,7 @@
  * 当 WebSocket 连接后，自动订阅当前会话的消息事件，
  * 实现消息的实时推送，替代轮询拉取。
  */
-import { watch } from 'vue'
+import { watch, ref, onMounted, onUnmounted } from 'vue'
 import { useChatStore } from '@/stores/chat'
 import { useSessionStore } from '@/stores/session'
 import { useGatewayStore } from '@/stores/gateway'
@@ -24,6 +24,8 @@ export function useRealtimeChat() {
 
   let unsubMessage: (() => void) | null = null
   let unsubSessions: (() => void) | null = null
+  let reconnectTimer: NodeJS.Timeout | null = null
+  let isConnecting = ref(false)
 
   function setupEventHandlers() {
     unsubMessage?.()
@@ -48,15 +50,44 @@ export function useRealtimeChat() {
 
   /** 连接 WebSocket */
   async function connectWs() {
-    if (gatewayWs.connectionState === 'connected') return
+    // 防止重复连接
+    if (gatewayWs.connectionState === 'connected' || isConnecting.value) {
+      return
+    }
+
+    isConnecting.value = true
     try {
       await gatewayWs.connect()
       setupEventHandlers()
       if (sessionStore.currentSessionKey) {
         gatewayWs.subscribeSession(sessionStore.currentSessionKey)
       }
+      console.log('[Realtime] WebSocket 连接成功')
     } catch (error) {
       console.warn('[Realtime] WebSocket 连接失败，使用 HTTP 轮询:', error)
+    } finally {
+      isConnecting.value = false
+    }
+  }
+
+  /** 启动重连检查 */
+  function startReconnectCheck() {
+    stopReconnectCheck()
+    
+    reconnectTimer = setInterval(async () => {
+      // 如果 Gateway 运行但 WebSocket 未连接，尝试重连
+      if (gatewayStore.running && !gatewayWs.isConnected && !isConnecting.value) {
+        console.log('[Realtime] 检测到 WebSocket 断开，尝试重连...')
+        await connectWs()
+      }
+    }, 30000) // 每 30 秒检查一次
+  }
+
+  /** 停止重连检查 */
+  function stopReconnectCheck() {
+    if (reconnectTimer) {
+      clearInterval(reconnectTimer)
+      reconnectTimer = null
     }
   }
 
@@ -76,12 +107,26 @@ export function useRealtimeChat() {
     async (running) => {
       if (running) {
         await connectWs()
+        startReconnectCheck()
       } else {
         cleanupEventHandlers()
+        stopReconnectCheck()
         gatewayWs.disconnect()
       }
-    }
+    },
+    { immediate: true } // 立即执行
   )
 
-  return { connectWs, cleanupEventHandlers }
+  // 组件卸载时清理
+  onUnmounted(() => {
+    cleanupEventHandlers()
+    stopReconnectCheck()
+  })
+
+  return { 
+    connectWs, 
+    cleanupEventHandlers,
+    startReconnectCheck,
+    stopReconnectCheck 
+  }
 }

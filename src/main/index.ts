@@ -18,9 +18,11 @@ const log = createLogger('Main')
 let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let gatewayProcess: ChildProcess | null = null
+let gatewayRestartAttempts = 0
 
 const GATEWAY_PORT = 22333
 const isDev = !app.isPackaged
+const MAX_GATEWAY_RESTART_ATTEMPTS = 3
 
 function getOpenclawDir(): string {
   if (isDev) return join(app.getAppPath(), '..', 'openclaw-dist')
@@ -118,9 +120,36 @@ async function startGateway(): Promise<void> {
     console.error(`[openclaw] ${data.toString().trim()}`)
   })
 
+  gatewayProcess.on('spawn', () => {
+    gatewayRestartAttempts = 0
+    log.info('Gateway 进程启动成功')
+  })
+
   gatewayProcess.on('exit', (code) => {
     log.warn(`Gateway 已退出，退出码: ${code}`)
     gatewayProcess = null
+
+    // 非正常退出时自动重启
+    if (code !== 0 && code !== null) {
+      if (gatewayRestartAttempts < MAX_GATEWAY_RESTART_ATTEMPTS) {
+        gatewayRestartAttempts++
+        log.info(`尝试重启 Gateway (${gatewayRestartAttempts}/${MAX_GATEWAY_RESTART_ATTEMPTS})`)
+        
+        setTimeout(async () => {
+          try {
+            await startGateway()
+          } catch (error) {
+            log.error('Gateway 重启失败', error)
+          }
+        }, 3000) // 3 秒后重启
+      } else {
+        log.error('Gateway 多次崩溃，无法自动恢复')
+        dialog.showErrorBox(
+          'Gateway 崩溃',
+          'Gateway 进程多次崩溃，无法自动恢复。请重启应用。'
+        )
+      }
+    }
   })
 
   log.info('Gateway 已启动')
