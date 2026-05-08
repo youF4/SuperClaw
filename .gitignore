@@ -24,6 +24,7 @@ Thumbs.db
 
 # openclaw-dist dependencies (installed before build)
 openclaw-dist/node_modules/
+openclaw-dist/node.exe
 
 # Runtime data (created by app at runtime)
 data/
