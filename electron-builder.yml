@@ -1,0 +1,32 @@
+appId: com.superclaw.desktop
+productName: SuperClaw
+directories:
+  buildResources: resources
+  output: dist
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+extraResources:
+  - from: ./openclaw-dist
+    to: openclaw
+    filter:
+      - '**/*'
+win:
+  executableName: SuperClaw
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  perMachine: true
+  allowToChangeInstallationDirectory: true
+  installerIcon: resources/icon.ico
+  uninstallerIcon: resources/icon.ico
+  language: 2052
+  deleteAppDataOnUninstall: false
+  webviewInstallMode:
+    type: downloadBootstrapper

@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { invoke } from '@tauri-apps/api/core'
 import { notify } from '@/composables/useNotification'
+
+const api = () => window.electronAPI?.gateway
 
 export const useGatewayStore = defineStore('gateway', () => {
   const running = ref(false)
@@ -11,12 +12,7 @@ export const useGatewayStore = defineStore('gateway', () => {
   async function start() {
     loading.value = true
     try {
-      const result = await invoke<string>('start_gateway')
-      // 解析 result 中的 PID，格式: "Gateway started with PID: 1234"
-      const pidMatch = result.match(/PID:?\s*(\d+)/)
-      if (pidMatch) {
-        pid.value = parseInt(pidMatch[1], 10)
-      }
+      const result = await api()!.start()
       running.value = true
       notify('Gateway 已启动', 'success')
     } catch (error) {
@@ -29,7 +25,7 @@ export const useGatewayStore = defineStore('gateway', () => {
   async function stop() {
     loading.value = true
     try {
-      await invoke('stop_gateway')
+      await api()!.stop()
       running.value = false
       pid.value = null
       notify('Gateway 已停止', 'info')
@@ -42,7 +38,7 @@ export const useGatewayStore = defineStore('gateway', () => {
 
   async function checkStatus() {
     try {
-      const status = await invoke<boolean>('gateway_status')
+      const status = await api()!.status()
       running.value = status
     } catch (error) {
       console.error('[Gateway] Status check failed:', error)
@@ -50,12 +46,5 @@ export const useGatewayStore = defineStore('gateway', () => {
     }
   }
 
-  return {
-    running,
-    pid,
-    loading,
-    start,
-    stop,
-    checkStatus,
-  }
+  return { running, pid, loading, start, stop, checkStatus }
 })

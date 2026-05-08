@@ -3,10 +3,7 @@ node_modules/
 
 # Build output
 dist/
-src-tauri/target/
-
-# Rust
-*.rs.bk
+out/
 
 # IDE
 .vscode/
@@ -24,9 +21,6 @@ Thumbs.db
 
 # Logs
 *.log
-
-# Tauri generated
-src-tauri/gen/schemas/
 
 # openclaw source (not needed for runtime)
 openclaw/

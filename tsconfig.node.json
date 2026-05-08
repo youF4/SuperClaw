@@ -1,13 +1,13 @@
 {
   "compilerOptions": {
-    "composite": true,
-    "emitDeclarationOnly": true,
-    "declaration": true,
-    "skipLibCheck": true,
+    "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "allowSyntheticDefaultImports": true,
-    "strict": true
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": "out"
   },
-  "include": ["vite.config.ts"]
+  "include": ["src/main/**/*", "src/preload/**/*"],
+  "exclude": ["node_modules"]
 }
