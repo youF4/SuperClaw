@@ -22,9 +22,6 @@ Thumbs.db
 # Logs
 *.log
 
-# openclaw source (not needed for runtime)
-openclaw/
-
 # openclaw-dist dependencies (installed before build)
 openclaw-dist/node_modules/
 

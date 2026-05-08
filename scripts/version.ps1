@@ -6,8 +6,6 @@ param(
 
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $PackageJson = Join-Path $ProjectRoot "package.json"
-$CargoToml   = Join-Path $ProjectRoot "src-tauri\Cargo.toml"
-$TauriConf   = Join-Path $ProjectRoot "src-tauri\tauri.conf.json"
 $Changelog   = Join-Path $ProjectRoot "CHANGELOG.md"
 
 # ---- Read current version from package.json ----
@@ -36,27 +34,7 @@ $pkg.version = $NewVer
 Write-Utf8NoBom $PackageJson ($pkg | ConvertTo-Json -Depth 10)
 Write-Host "[OK] package.json" -ForegroundColor Green
 
-# ---- 2. Update Cargo.toml ----
-$cargoLines = Get-Content $CargoToml
-$inPackage = $false
-for ($i = 0; $i -lt $cargoLines.Length; $i++) {
-    if ($cargoLines[$i] -match '^\[package\]') { $inPackage = $true }
-    elseif ($cargoLines[$i] -match '^\[.*\]') { $inPackage = $false }
-    if ($inPackage -and $cargoLines[$i] -match '^version\s*=\s*"(\d+\.\d+\.\d+)"') {
-        $cargoLines[$i] = 'version = "' + $NewVer + '"'
-        break
-    }
-}
-Write-Utf8NoBom $CargoToml ($cargoLines -join "`r`n")
-Write-Host "[OK] Cargo.toml" -ForegroundColor Green
-
-# ---- 3. Update tauri.conf.json ----
-$tauri = Get-Content $TauriConf -Raw | ConvertFrom-Json
-$tauri.version = $NewVer
-Write-Utf8NoBom $TauriConf ($tauri | ConvertTo-Json -Depth 10)
-Write-Host "[OK] tauri.conf.json" -ForegroundColor Green
-
-# ---- 4. Update CHANGELOG.md ----
+# ---- 2. Update CHANGELOG.md ----
 $Date = Get-Date -Format "yyyy-MM-dd"
 $Header = "## [$NewVer] - $Date"
 $Entry = if ($Message) { "- $Message" } else { "- " }
@@ -79,11 +57,9 @@ if (Test-Path $Changelog) {
 Write-Utf8NoBom $Changelog $cl
 Write-Host "[OK] CHANGELOG.md" -ForegroundColor Green
 
-# ---- 5. Git commit & tag ----
+# ---- 3. Git commit & tag ----
 git add @(
     "package.json",
-    "src-tauri\Cargo.toml",
-    "src-tauri\tauri.conf.json",
     "CHANGELOG.md"
 )
 
