@@ -1,6 +1,6 @@
 {
   "name": "superclaw",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "OpenClaw Desktop Client",
   "main": "./out/main/index.js",
   "author": "SuperClaw Team",
