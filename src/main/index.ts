@@ -9,7 +9,7 @@ import { statSync, mkdirSync } from 'fs'
 
 // 导入新模块
 import { registerAllIPC } from './ipc'
-import { ConfigManager } from './store'
+import { ConfigManager, CacheManager } from './store'
 import { createUpdater } from './updater'
 import { createLogger } from './logger'
 
@@ -19,6 +19,7 @@ let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let gatewayProcess: ChildProcess | null = null
 let gatewayRestartAttempts = 0
+let isQuitting = false
 
 const GATEWAY_PORT = 22333
 const isDev = !app.isPackaged
@@ -59,11 +60,11 @@ function createWindow(): void {
   })
 
   mainWindow.on('close', (event) => {
-    // 保存窗口状态
-    ConfigManager.saveWindowState(mainWindow!)
-    
-    event.preventDefault()
-    mainWindow?.hide()
+    if (!isQuitting) {
+      event.preventDefault()
+      mainWindow?.hide()
+    }
+    // 如果是真正退出，让 close 事件继续
   })
 
   if (isDev && process.env['ELECTRON_RENDERER_URL']) {
@@ -244,6 +245,9 @@ app.whenReady().then(() => {
     startGateway()
   }
 
+  // 检查并清理缓存
+  CacheManager.checkAndCleanCache()
+
   // 检查更新（启动 10 秒后）
   setTimeout(() => {
     if (!isDev && mainWindow) {
@@ -266,6 +270,13 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  isQuitting = true
+  
+  // 保存窗口状态
+  if (mainWindow) {
+    ConfigManager.saveWindowState(mainWindow)
+  }
+  
   stopGateway()
   log.info('应用退出')
 })

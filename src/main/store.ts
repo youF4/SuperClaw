@@ -233,6 +233,71 @@ export class CacheManager {
       this.deleteSession(session.key)
     }
   }
+
+  /**
+   * 检查并清理缓存（自动维护缓存大小）
+   */
+  static checkAndCleanCache() {
+    const sessions = this.getSessions()
+    const messages = cacheStore.get('messages')
+    
+    let cleaned = false
+    
+    // 1. 清理过期会话（最多保留 50 个）
+    if (sessions.length > this.MAX_SESSIONS) {
+      // 按最后消息时间排序
+      const sorted = [...sessions].sort((a, b) => 
+        (a.lastMessageAt || 0) - (b.lastMessageAt || 0)
+      )
+      
+      const toDelete = sorted.slice(0, sessions.length - this.MAX_SESSIONS)
+      for (const session of toDelete) {
+        this.deleteSession(session.key)
+      }
+      cleaned = true
+      console.log(`[Cache] 清理了 ${toDelete.length} 个旧会话`)
+    }
+    
+    // 2. 清理每个会话的消息（每个会话最多 1000 条）
+    const currentMessages = cacheStore.get('messages')
+    for (const [sessionKey, msgs] of Object.entries(currentMessages)) {
+      if (msgs.length > this.MAX_MESSAGES_PER_SESSION) {
+        // 只保留最新的消息
+        currentMessages[sessionKey] = msgs.slice(-this.MAX_MESSAGES_PER_SESSION)
+        cleaned = true
+      }
+    }
+    
+    if (cleaned) {
+      cacheStore.set('messages', currentMessages)
+      console.log('[Cache] 缓存清理完成')
+    }
+    
+    // 3. 检查缓存大小（最大 100MB）
+    const sizeMB = this.getCacheSizeMB()
+    if (sizeMB > this.MAX_CACHE_SIZE_MB) {
+      console.warn(`[Cache] 缓存大小 ${sizeMB.toFixed(2)}MB 超过限制 ${this.MAX_CACHE_SIZE_MB}MB`)
+      // 清理一半的会话
+      this.cleanOldCache(Math.floor(this.MAX_SESSIONS / 2))
+    }
+  }
+
+  /**
+   * 获取缓存大小（MB）
+   */
+  static getCacheSizeMB(): number {
+    const messages = cacheStore.get('messages')
+    const sessions = cacheStore.get('sessions')
+    
+    // 估算：每条消息约 1KB
+    const totalMessages = Object.values(messages).reduce((sum, msgs) => sum + msgs.length, 0)
+    return (totalMessages * 1) / 1024  // KB to MB
+  }
+
+  // 缓存限制常量
+  private static MAX_SESSIONS = 50  // 最多缓存 50 个会话
+  private static MAX_MESSAGES_PER_SESSION = 1000  // 每个会话最多 1000 条消息
+  private static MAX_CACHE_SIZE_MB = 100  // 最大缓存大小 100MB
 }
 
 /**

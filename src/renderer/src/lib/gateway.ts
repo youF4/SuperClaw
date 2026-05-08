@@ -12,38 +12,54 @@ export interface GatewayResponse<T = unknown> {
 }
 
 /**
- * HTTP 调用 Gateway API
+ * 带重试的 Gateway API 调用
  */
 export async function callGateway<T = unknown>(
   method: string,
-  params?: Record<string, unknown>
+  params?: Record<string, unknown>,
+  options: { retries?: number; retryDelay?: number } = {}
 ): Promise<GatewayResponse<T>> {
-  try {
-    const response = await fetch(`${GATEWAY_HTTP_URL}/api`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        method,
-        params: params || {},
-        id: Date.now(),
-      }),
-    })
+  const { retries = 2, retryDelay = 1000 } = options
+  let lastError: string | undefined
 
-    const data = await response.json()
-    return {
-      ok: !data.error,
-      result: data.result,
-      error: data.error?.message,
-    }
-  } catch (error) {
-    return {
-      ok: false,
-      error: error instanceof Error ? error.message : 'Network error',
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(`${GATEWAY_HTTP_URL}/api`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method,
+          params: params || {},
+          id: Date.now(),
+        }),
+      })
+
+      const data = await response.json()
+      
+      // 请求成功
+      if (!data.error) {
+        return { ok: true, result: data.result }
+      }
+      
+      // API 错误（不重试）
+      return { ok: false, result: data.result, error: data.error?.message }
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : 'Network error'
+      
+      // 还有重试机会，等待后重试
+      if (attempt < retries) {
+        console.warn(`[Gateway] ${method} 失败，${retryDelay}ms 后重试 (${attempt + 1}/${retries})`)
+        await new Promise(resolve => setTimeout(resolve, retryDelay))
+        continue
+      }
     }
   }
+
+  // 所有重试都失败
+  return { ok: false, error: lastError || 'Unknown error' }
 }
 
 /**

@@ -55,6 +55,8 @@ class GatewayWebSocket {
   private reconnectDelay = 1000
   private maxReconnectDelay = 30000
   private reqId = 0
+  private jsonParseErrors = 0
+  private maxJsonParseErrors = 5
 
   /** 当前连接状态 */
   connectionState: WsConnectionState = 'disconnected'
@@ -119,9 +121,18 @@ class GatewayWebSocket {
         this.ws.onmessage = (event) => {
           try {
             const frame = JSON.parse(event.data)
+            this.jsonParseErrors = 0  // 重置计数
             this.handleFrame(frame)
           } catch (error) {
-            console.error('[Gateway WS] 解析失败:', error)
+            this.jsonParseErrors++
+            console.error(`[Gateway WS] 解析失败 (${this.jsonParseErrors}/${this.maxJsonParseErrors}):`, error)
+            
+            // 如果连续解析失败，断开重连
+            if (this.jsonParseErrors >= this.maxJsonParseErrors) {
+              console.error('[Gateway WS] JSON 解析错误过多，断开连接')
+              this.disconnect()
+              this.connect()  // 重新连接
+            }
           }
         }
 
@@ -202,14 +213,33 @@ class GatewayWebSocket {
 
   // ── 内部方法 ──
 
+  /**
+   * 根据请求类型动态调整超时
+   */
+  private getRequestTimeout(method: string): number {
+    const timeouts: Record<string, number> = {
+      'connect': 10000,           // 连接握手 10 秒
+      'chat.send': 60000,         // 发送消息 60 秒（可能需要生成）
+      'sessions.list': 5000,      // 列表请求 5 秒
+      'sessions.create': 5000,    // 创建会话 5 秒
+      'sessions.delete': 5000,    // 删除会话 5 秒
+      'sessions.reset': 5000,     // 重置会话 5 秒
+      'sessions.compact': 10000,  // 压缩会话 10 秒
+      'health': 3000,             // 健康检查 3 秒
+    }
+    
+    return timeouts[method] || 15000  // 默认 15 秒
+  }
+
   private sendRequest(method: string, params?: Record<string, unknown>): Promise<unknown> {
     const id = String(++this.reqId)
 
     return new Promise((resolve, reject) => {
+      const timeout = this.getRequestTimeout(method)
       const timer = setTimeout(() => {
         this.pending.delete(id)
-        reject(new Error(`Request timeout: ${method}`))
-      }, 15000)
+        reject(new Error(`Request timeout (${timeout}ms): ${method}`))
+      }, timeout)
 
       this.pending.set(id, { resolve, reject, timer })
 
@@ -275,12 +305,23 @@ class GatewayWebSocket {
   private scheduleReconnect(): void {
     if (this.reconnectTimer) return
 
-    this.reconnectTimer = setTimeout(() => {
+    this.reconnectTimer = setTimeout(async () => {
       this.reconnectTimer = null
       console.log('[Gateway WS] 重连中...')
-      this.connect().catch(() => {
-        this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay)
-      })
+      
+      try {
+        await this.connect()
+        // 重连成功，重置延迟
+        this.reconnectDelay = 1000
+        console.log('[Gateway WS] 重连成功')
+      } catch (error) {
+        // 重连失败，增加延迟
+        this.reconnectDelay = Math.min(
+          this.reconnectDelay * 2,
+          this.maxReconnectDelay
+        )
+        console.warn(`[Gateway WS] 重连失败，${this.reconnectDelay}ms 后重试`)
+      }
     }, this.reconnectDelay)
   }
 }
