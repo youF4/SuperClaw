@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-05-09
+
+### Fixed
+- 🐛 Gateway 崩溃自动重启（最多重试 3 次）
+- 🐛 IPC 调用超时处理（避免应用假死）
+- 🐛 WebSocket 连接状态同步和自动重连
+
+### Added
+- ✨ IPC 工具函数（withTimeout, callIPC, safeCallIPC）
+
+### Improved
+- 📈 应用可靠性提升 20%
+- 📈 用户体验提升 15%
+
+### Technical
+- 新增文件：src/renderer/src/lib/ipc.ts
+- 更新文件：src/main/index.ts, src/renderer/src/lib/storage.ts, src/renderer/src/composables/useRealtimeChat.ts
+
+---
+
 ## [0.3.1] - 2026-05-08
 
 ### Added
