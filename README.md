@@ -35,7 +35,7 @@
 | **状态管理** | Pinia |
 | **Gateway 通信** | HTTP API (主) + WebSocket 协议 (实时事件) |
 | **内嵌运行时** | Node.js + OpenClaw Gateway |
-| **分发包** | NSIS 安装包 (含 WebView2 内嵌引导) |
+| **分发包** | NSIS 安装包 |
 
 ## 下载安装
 

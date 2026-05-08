@@ -28,5 +28,3 @@ nsis:
   uninstallerIcon: resources/icon.ico
   language: 2052
   deleteAppDataOnUninstall: false
-  webviewInstallMode:
-    type: downloadBootstrapper
